@@ -42,6 +42,9 @@ async function handleLogin() {
         The labeling tool connects to an <a href="https://github.com/menxli/lfss" target="_blank" class="text-blue-500 underline"><b>LFSS</b></a> backend.
         Please provide the LFSS backend URL, and your access token for authentication.
       </p>
+      <p class="mb-4 text-gray-600 text-sm">
+        More details can be found in the <a href="https://menxli.github.io/metadent-app/docs/setup-backend.html" target="_blank" class="text-blue-500 underline"><b>documentation</b></a>.
+      </p>
       <form @submit.prevent="handleLogin" class="flex flex-col gap-2">
         <div class="mb-4">
           <p class="text-gray-700 font-medium mb-2"> LFSS endpoint </p>

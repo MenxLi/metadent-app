@@ -24,7 +24,7 @@ Add your first user:
 ```sh
 lfss-user add <username> --admin --max-storage 1T
 ```
-This will result in a hashed password being generated. Make sure to save it somewhere safe.
+**This will result in a hashed password being generated. Make sure to save it somewhere safe.**
 
 Run the server:
 ```sh

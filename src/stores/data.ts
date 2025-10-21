@@ -108,7 +108,7 @@ export const useDataStore = defineStore('dataStore', () => {
 
     const backend = userStore.backend;
 
-    const documentationLink = ""; // TODO: add documentation link here
+    const fsDocLink = "https://menxli.github.io/metadent-app/docs/setup-backend.html#prepare-files-for-labeling";
 
     const fn_updateDataInfo = async () => {
       let dataInfo: DataInfo;
@@ -116,7 +116,7 @@ export const useDataStore = defineStore('dataStore', () => {
       catch(e){
         uiStateStore.msg.set(
           `Info format error for ${item.fileName}. Please check metadata format.<br>` +
-          `More information can be found in <a href="${documentationLink}" style='color: blue'>the documentation</a>.`,
+          `More information can be found in <a href="${fsDocLink}" style='color: blue'>the documentation</a>.`,
           'warning'
         );
         throw e;
@@ -139,7 +139,7 @@ export const useDataStore = defineStore('dataStore', () => {
       if (! await backend.isInfoAvailable(item.fileName)) {
         uiStateStore.msg.set(
           `Data info not available for ${item.fileName}. Please check metadata directory configuration.<br>` +
-          `More information can be found in <a href="${documentationLink}" style='color: blue'>the documentation</a>.`,
+          `More information can be found in <a href="${fsDocLink}" style='color: blue'>the documentation</a>.`,
           'error'
         );
         throw new Error("Data info not available for " + item.fileName);
