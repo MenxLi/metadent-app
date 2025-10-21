@@ -1,0 +1,468 @@
+import Connector from './lfss';
+import type { Config } from './lfss';
+
+export interface UserInfo {
+  username: string,
+  isAdmin: boolean
+}
+
+export enum FileLabelStatus {
+  DONE = "done",
+  LABELED = "labeled",
+  SKIPPED = "skipped",
+  LOCKED = "locked",
+  UNLABELED = "unlabeled",
+}
+export interface DataItem {
+  imageUrl: string;     // full image url
+  thumbUrl: string;     // full thumbnail url
+  fileName: string;     // file name in labeling fs
+  status: FileLabelStatus;
+}
+
+export interface DataInfo {
+  originalPath: string;
+  filterPath: string;
+  currentFilename: string;
+  width: number;
+  height: number;
+  fileSize: number;
+  imageHash: string;
+  link: string;
+}
+
+export interface LockStatus {
+  lockedBy: string;
+  lockTime: string;
+  lockExpire: string;
+}
+
+export interface DataLabel {
+  annotators: string[];
+  overallDescription: string;
+  contours: LabelItem[];
+  crop: [number, number, number, number] | null; // [x, y, width, height] in normalized coordinates [0,1]
+}
+
+export interface LabelItem {
+  id: string;
+  lowConfidence: boolean;
+  description: string;
+  color: string;                    // hex color, e.g. "#FF0000"
+  contours: [number, number][][];   // x,y in normalized coordinates [0,1]
+}
+
+// A wrapper class for lfss to adapt to the application
+export class BackendCalls {
+  connector: Connector;
+  imageDir: string;
+  metaDir: string;
+
+  constructor() {
+    this.connector = new Connector();
+    this.imageDir = '';
+    this.metaDir = '';
+  }
+
+  configureLFSS(config: Config) : BackendCalls {
+    this.connector.config = config;
+    return this
+  }
+
+  configurePath({ imageDir, metaDir, }: {
+    imageDir: string;
+    metaDir: string;
+  }) : BackendCalls {
+    const fmtPath = (path: string) => {
+      if (path.startsWith("/")) { path = path.slice(1); }
+      if (path.endsWith("/")) { return path; }
+      else { return path + "/"; }
+    }
+    this.imageDir = fmtPath(imageDir);
+    this.metaDir = fmtPath(metaDir);
+    return this
+  }
+
+  async auth(): Promise<UserInfo | null> {
+    try {
+      const response = await this.connector.whoami();
+      return {
+        username: response.username,
+        isAdmin: response.is_admin
+      }
+    }
+    catch (error) {
+      console.error('Error verifying user:', error);
+      return null;
+    }
+  }
+
+  async countData() : Promise<number> {
+    return await this.connector.countFiles(this.imageDir, { flat: true });
+  }
+
+  _getDataMetaDir(fileName: string): string {
+    const fnameRoot = fileName.split(".").slice(0, -1).join(".");
+    const fmetaDir = this.metaDir + fnameRoot + "/";
+    return fmetaDir;
+  }
+
+  // avoid caching
+  _mangling(path: string): string {
+    const timestamp = new Date().getTime();
+    if (path.includes("?")) {
+      return path + "&t=" + timestamp;
+    }
+    else {
+      return path + "?t=" + timestamp;
+    }
+  }
+
+  async isInfoAvailable(fileName: string): Promise<boolean> {
+    const metaDir = this._getDataMetaDir(fileName);
+    if (!await this.connector.exists(metaDir + 'info.json')) {
+      return false;
+    }
+    return true;
+  }
+
+  async querySkip(fileName: string): Promise<string | null> {
+    const metaDir = this._getDataMetaDir(fileName);
+    const skipFile = metaDir + "skip.json";
+    const skipInfo = await this.connector.getMetadata(skipFile);
+    if (skipInfo == null) {
+      return null;
+    }
+    const skipData = await this.connector.getJson(skipFile) as { reason: string };
+    return skipData.reason;
+  }
+
+  async setSkip(fileName: string, reason: string): Promise<void> {
+    const metaDir = this._getDataMetaDir(fileName);
+    const skipFile = metaDir + "skip.json";
+    const skipInfo = {
+      reason: reason,
+      skipTime: new Date().toISOString(),
+    }
+    await this.connector.putJson(skipFile, skipInfo, {
+      conflict: "overwrite",
+    });
+  }
+
+  async unSkip(fileName: string): Promise<void> {
+    const metaDir = this._getDataMetaDir(fileName);
+    const skipFile = metaDir + "skip.json";
+    if (await this.connector.getMetadata(skipFile) != null) {
+      await this.connector.delete(skipFile);
+    }
+  }
+
+  async getLabel(fileName: string): Promise<DataLabel> {
+    const metaDir = this._getDataMetaDir(fileName);
+    const labelFile = metaDir + "label.json";
+    const meta = await this.connector.getMetadata(labelFile);
+    if (meta == null) {
+      return {
+        annotators: [],
+        overallDescription: "",
+        contours: [],
+        crop: null, // no crop by default
+      }
+    }
+    const label = await this.connector.getJson(this._mangling(labelFile)) as DataLabel;
+    // backward compatibility
+    if (label.crop === undefined) { label.crop = null; }
+    return label;
+  }
+
+  async setLabel(fileName: string, label: DataLabel, annotator: string | null = null): Promise<void> {
+    const metaDir = this._getDataMetaDir(fileName);
+    const flabelFile = metaDir + "label.json";
+    // add the annotator to the label
+    if (!label.annotators) {  // backward compatibility
+      label.annotators = [];
+    }
+    if (annotator != null && !label.annotators.includes(annotator)) {
+      console.debug("add annotator", annotator);
+      label.annotators.push(annotator);
+    }
+
+    console.info("setLabel", flabelFile, label);
+    await this.connector.putJson(flabelFile, label, {
+      conflict: "overwrite",
+    });
+  }
+
+  async getLabelStatus(fileNames: string[], skipUserLock: string | null = null): Promise<FileLabelStatus[]> {
+    const fileStatus: Record<string, FileLabelStatus> = {};
+    fileNames.forEach((fileName) => {
+      // default to UNLABELED
+      fileStatus[fileName] = FileLabelStatus.UNLABELED;
+    })
+
+    // labeled
+    {
+      const labelpath2fname: Record<string, string> = {};
+      const labelFiles = fileNames.map((fileName) => {
+        const labelf = this._getDataMetaDir(fileName) + "label.json"
+        labelpath2fname[labelf] = fileName;
+        return labelf;
+      });
+      if (labelFiles.length) {
+        const multres = await this.connector.getMultipleText(labelFiles, { skipContent: true });
+        const existLabelFiles = Object.keys(multres).filter((fpath) => multres[fpath] != null);
+        existLabelFiles.forEach((fpath) => {
+          const fileName = labelpath2fname[fpath]!;
+          fileStatus[fileName] = FileLabelStatus.LABELED;
+        });
+      }
+    }
+    // skip
+    {
+      const skippath2fname: Record<string, string> = {};
+      const skipFiles = fileNames.map((fileName) => {
+        const skipf = this._getDataMetaDir(fileName) + "skip.json"
+        skippath2fname[skipf] = fileName;
+        return skipf;
+      });
+      if (skipFiles.length){
+        const multres = await this.connector.getMultipleText(skipFiles, { skipContent: true });
+        const existSkipFiles = Object.keys(multres).filter((fpath) => multres[fpath] != null);
+        existSkipFiles.forEach((fpath) => {
+          const fileName = skippath2fname[fpath]!;
+          fileStatus[fileName] = FileLabelStatus.SKIPPED;
+        });
+      }
+    }
+    // lock
+    {
+      const lockpath2fname: Record<string, string> = {};
+      const lockFiles = fileNames.map(
+        (fileName) => {
+          const lockf = this._getDataMetaDir(fileName) + "lock.json"
+          lockpath2fname[lockf] = fileName;
+          return lockf;
+        }
+      )
+      if (lockFiles.length) {
+        const existLockContents = await this.connector.getMultipleText(lockFiles);
+        const existLockFiles = Object.keys(existLockContents).filter((fpath) => existLockContents[fpath] != null);
+        existLockFiles.forEach((fpath) => {
+          const fileName = lockpath2fname[fpath]!;
+          const lockInfo = JSON.parse(existLockContents[fpath]!) as LockStatus;
+          if (new Date(lockInfo.lockExpire) < new Date()) {
+            this.connector.delete(fpath);
+            console.debug("Remove expired lock file", fpath);
+            return;
+          }
+          if (skipUserLock != null && lockInfo.lockedBy == skipUserLock) {
+            return;
+          }
+          fileStatus[fileName] = FileLabelStatus.LOCKED;
+        });
+      }
+    }
+
+    return fileNames.map((fileName) => fileStatus[fileName]!)
+  }
+
+  async listData(
+    offset: number,
+    limit: number,
+    {
+      skipUserLock = null as string | null,
+    }
+  ) : Promise<DataItem[]> {
+    const files = await this.connector.listFiles(this.imageDir, {
+      offset: offset,
+      limit: limit,
+      orderBy: "url",
+    });
+
+    function wrapUrl(url: string, params: object) {
+      const urlObj = new URL(url);
+      for (const key in params) {
+        urlObj.searchParams.append(key, params[key as keyof typeof params]);
+      }
+      return urlObj.toString();
+    }
+
+    const fnames = files.map((file) => {
+      const fname = file.url.slice(this.imageDir.length);
+      return fname;
+    });
+
+    const fileStatus = await this.getLabelStatus(fnames, skipUserLock);
+    const fileItems: DataItem[] = files.map((file, i) => {
+      const fileUrl = this.connector.config.endpoint + '/' + file.url;
+      return {
+        imageUrl: wrapUrl(fileUrl, { token: this.connector.config.token }),
+        thumbUrl: wrapUrl(fileUrl, { thumb: "true", token: this.connector.config.token }),
+        fileName: fnames[i]!,
+        status: fileStatus[i]!,
+      };
+    });
+
+    return fileItems;
+  }
+
+  async getDataInfo(fileName: string): Promise<DataInfo> {
+    const ret = await this.connector.getJson(this._getDataMetaDir(fileName) + "info.json");
+    const validateDataInfo = (data: DataInfo): boolean => {
+      return ['originalPath', 'filterPath', 'currentFilename', 'width', 'height', 'fileSize', 'imageHash', 'link'].every(prop => prop in data);
+    }
+    if (!validateDataInfo(ret as DataInfo)) {
+      throw new Error("Invalid data info format for " + fileName);
+    }
+    function toCamelCase(str: string) {
+      return str.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase());
+    }
+    // make fields camelCase
+    const camelCaseRet: { [key: string]: unknown } = {};
+    for (const key in ret) {
+      camelCaseRet[toCamelCase(key)] = ret[key as keyof typeof ret];
+    }
+    return camelCaseRet as unknown as DataInfo;
+  }
+
+  // maybe not needed...
+  async getLockDetail(fitem: DataItem): Promise<LockStatus | null> {
+    const lockFile = this._getDataMetaDir(fitem.fileName) + "lock.json";
+    const lockInfo = await this.connector.getJson(lockFile) as LockStatus;
+    return lockInfo;
+  }
+
+  /**
+   * Try to lock a file for labeling,
+   * if the lock is successfully acquired, return [true, lockInfo by the current user]
+   * if the file is already locked by another user, return [false, lockInfo by the other user]
+   */
+  async tryLock(fitem: DataItem): Promise<[boolean, LockStatus]> {
+    const lockFile = this._getDataMetaDir(fitem.fileName) + "lock.json";
+    const user = await this.auth() as UserInfo;
+
+    const EXPIRE_TIME = 10 * 60 * 1000; // 10 min
+    const doLock = async () => {
+      const lockInfo: LockStatus = {
+        lockedBy: user!.username,
+        lockTime: new Date().toISOString(),
+        lockExpire: new Date(Date.now() + EXPIRE_TIME).toISOString(), // 1 hour
+      };
+      await this.connector.putJson(lockFile, lockInfo, {
+        conflict: "overwrite",
+      });
+      console.debug("lock file created at", lockFile);
+      console.debug("lock info", lockInfo);
+      return lockInfo;
+    }
+
+    // lock file does not exist, create it
+    if (await this.connector.getMetadata(lockFile) == null) {
+      return [true, await doLock()];
+    }
+
+    // already locked, check if the lock is by the same user or is expired
+    const lockInfo = await this.connector.getJson(lockFile) as LockStatus;
+    if (lockInfo.lockedBy == user.username || new Date(lockInfo.lockExpire) < new Date()) {
+      return [true, await doLock()];
+    }
+    else {
+      // actively locked by another user
+      return [false, lockInfo];
+    }
+  }
+
+  /**
+   * Try to unlock a file for labeling,
+   * if the file is not locked by the current user, do nothing
+   */
+  async tryUnlock(fitem: DataItem): Promise<void> {
+    const lockFile = this._getDataMetaDir(fitem.fileName) + "lock.json";
+    const user = await this.auth();
+    if (user == null) { return; }    // should be impossible
+    const lockInfo = await this.connector.getJson(lockFile) as LockStatus;
+    if (lockInfo.lockedBy == user.username || new Date(lockInfo.lockExpire) < new Date()) {
+      await this.connector.delete(lockFile);
+      console.debug("lock file deleted at", lockFile);
+    }
+  }
+}
+
+export async function imageChatCompletion(
+  imgUrl: string,
+  {
+    prompt = "Please describe the image.",
+    model = "gpt-4o",
+    openaiAPIBase = "https://api.openai.com/v1",
+    openaiAPIKey = "",
+  }: {
+    prompt?: string;
+    model?: string;
+    openaiAPIBase?: string;
+    openaiAPIKey?: string;
+  }
+): Promise<string> {
+  if (!openaiAPIKey) {
+    throw new Error("Missing OpenAI API key.");
+  }
+
+  // Step 1: Fetch image as blob
+  const response = await fetch(imgUrl, {mode: "cors"});
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.statusText}`);
+  }
+
+  const blob = await response.blob();
+  const contentType = blob.type || "image/jpeg";
+
+  // Step 2: Convert blob to base64 using FileReader
+  const base64Image = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        const base64Data = result.split(",")[1]; // strip the data URL prefix
+        resolve(base64Data!);
+      } else {
+        reject("Failed to convert image to base64.");
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+
+  // Step 3: Send to OpenAI Vision
+  const result = await fetch(`${openaiAPIBase}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openaiAPIKey}`,
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${contentType};base64,${base64Image}`,
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 1000,
+    }),
+  });
+
+  if (!result.ok) {
+    const error = await result.text();
+    throw new Error(`OpenAI API error: ${error}`);
+  }
+
+  const json = await result.json();
+  return json.choices?.[0]?.message?.content;
+}

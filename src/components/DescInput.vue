@@ -1,0 +1,120 @@
+<template>
+  <div class="relative w-full">
+    <textarea
+      v-model="modelValue"
+      :disabled="fetching"
+      class="w-full p-2 border border-gray-300 rounded-lg shadow-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-500"
+      placeholder="Overall description"
+      ref="textareaRef"
+      rows="3"
+      @keydown="handleKeydown"
+    ></textarea>
+
+    <button
+      @click="fetching ? null : autoComplete()"
+      class="absolute bottom-3 right-2 p-2 bg-gray-200 text-white rounded-full shadow-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      <svg v-if="!fetching"
+        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2v2" />
+        <path d="M12 20v2" />
+        <path d="M4.93 4.93l1.41 1.41" />
+        <path d="M17.66 17.66l1.41 1.41" />
+        <path d="M2 12h2" />
+        <path d="M20 12h2" />
+        <path d="M4.93 19.07l1.41-1.41" />
+        <path d="M17.66 6.34l1.41-1.41" />
+        <polyline points="9 12.5 11.5 15 15 10" />
+      </svg>
+
+      <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 6" width="24" height="24" fill="black">
+        <circle cx="4" cy="3" r="2" />
+        <circle cx="12" cy="3" r="2" />
+        <circle cx="20" cy="3" r="2" />
+      </svg>
+
+
+    </button>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { ref } from 'vue'
+import { useDataStore } from '@/stores/data';
+import { useUserStore } from '@/stores/user';
+import { imageChatCompletion } from '@/api';
+
+const modelValue = defineModel('modelValue', {
+  type: String,
+  default: ''
+})
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string): void
+  (e: 'enter'): void
+}>()
+
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const fetching = ref(false)
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    emit('enter')
+  }
+}
+
+const focus = () => {
+  textareaRef.value?.focus()
+}
+
+defineExpose({ focus })
+
+const dataStore = useDataStore()
+const userStore = useUserStore()
+
+async function autoComplete() {
+  if (dataStore.activeDataItem == null || dataStore.activeDataLabel == null) {
+    return
+  }
+  const imageUrl = dataStore.activeDataItem.imageUrl + "&download=true"
+
+  fetching.value = true
+  try {
+    const res = await imageChatCompletion(imageUrl, {
+      prompt: userStore.settings.descPrompt,
+      model: userStore.settings.openaiModel,
+      openaiAPIKey: userStore.settings.openaiAPIKey,
+      openaiAPIBase: userStore.settings.openaiAPIBase,
+    })
+    if (res) {
+      const description = res;
+      console.log('Auto-complete response:', res)
+      emit('update:modelValue', description)
+    }
+  } catch (error) {
+    console.error('Error fetching auto-complete:', error)
+    alert('Error fetching auto-complete: ' + error)
+  } finally {
+    fetching.value = false
+  }
+
+  // imageChatCompletion(imageUrl, {
+  //   prompt,
+  //   model: userStore.settings.openaiModel,
+  //   openaiAPIKey: userStore.settings.openaiAPIKey,
+  //   openaiAPIBase: userStore.settings.openaiAPIBase,
+  // })
+  //   .then((res) => {
+  //     if (res) {
+  //       const description = res;
+  //       console.log('Auto-complete response:', res)
+  //       emit('update:modelValue', description)
+  //     }
+  //   })
+  //   .catch((error) => {
+  //     console.error('Error fetching auto-complete:', error)
+  //     alert('Error fetching auto-complete: ' + error)
+  //   })
+}
+</script>

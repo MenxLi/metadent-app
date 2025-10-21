@@ -1,0 +1,249 @@
+<template>
+  <div
+    class="relative"
+  >
+    <img
+      ref="imageRef"
+      :src="imageSrc"
+      class="object-contain select-none"
+      :style="{ maxHeight: `${maxHeight}px`, maxWidth: `${maxWidth}px`}"
+
+      @mousedown="startDrawing"
+      @mousemove="draw"
+      @mouseup="stopDrawing"
+
+      @touchstart="startDrawing"
+      @touchmove.prevent="draw"
+      @touchend="stopDrawing"
+
+      @load="onImageLoad"
+      @dragstart.prevent
+      @contextmenu="(event) => event.preventDefault()"
+    />
+    <svg
+      ref="svgRef"
+      class="absolute top-0 left-0 pointer-events-none"
+      xmlns="http://www.w3.org/2000/svg"
+      :width="imageSize.width"
+      :height="imageSize.height"
+    >
+      <template v-if="!hideContours">
+        <template v-for="label in labels" :key="label.id">
+          <template v-for="(contour, contourIndex) in label.contours" :key="`${label.id}-${contourIndex}`">
+            <polygon
+              :points="getReactiveSvgPoints(contour)"
+              :fill="label.color + '66'"
+              :stroke="label.color"
+              stroke-width="2"
+              fill-rule="evenodd"
+            />
+          </template>
+        </template>
+      </template>
+      <polyline
+        v-if="drawing && currentContour.length"
+        :points="getReactiveSvgPoints(currentContour)"
+        fill="none"
+        :stroke="props.activeLabel ? props.labels.find(label => label.id === props.activeLabel)?.color : '#000000'"
+        stroke-width="2"
+      />
+      <polyline
+        :points="getReactiveCropPoints(currentCrop)"
+        fill="none"
+        stroke="#33EECC"
+        stroke-width="2"
+        stroke-dasharray="5,3"
+      />
+    </svg>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { ref, defineProps, defineEmits, computed, nextTick, watch } from 'vue';
+import type { LabelItem } from '@/api';
+import { resampleContour } from '@/utils';
+
+const props = defineProps<{
+  imageSrc: string;
+  maxHeight: number;
+  maxWidth: number;
+  labels: LabelItem[];
+  crop: [number, number, number, number] | null; // [x, y, width, height] in normalized coordinates [0,1]
+  activeLabel: string | null;
+  hideContours: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: 'update:labels', value: LabelItem[]): void;
+  (e: 'update:crop', value: [number, number, number, number] | null): void;
+}>();
+
+const imageRef = ref<HTMLImageElement | null>(null);
+const svgRef = ref<SVGSVGElement | null>(null);
+
+const cropping = ref(false);
+// currentCrop is the crop rectangle being drawn in:
+// [[point1.x, point1.y], [point2.x, point2.y]]
+// the order is not important, but it should be normalized to [0,1] coordinates
+const currentCrop = ref<[[number, number], [number, number]] | null>(null);
+const currentCrop2RectFn = (v: [[number, number], [number, number]]) => {
+  const [p1, p2] = v;
+  return [
+    [Math.min(p1[0], p2[0]), Math.min(p1[1], p2[1])],
+    [Math.max(p1[0], p2[0]), Math.min(p1[1], p2[1])],
+    [Math.max(p1[0], p2[0]), Math.max(p1[1], p2[1])],
+    [Math.min(p1[0], p2[0]), Math.max(p1[1], p2[1])],
+    [Math.min(p1[0], p2[0]), Math.min(p1[1], p2[1])],
+  ] as [number, number][];
+};
+watch(() => props.crop, () => {
+  console.log('crop prop changed', props.crop);
+  if (!props.crop) {
+    currentCrop.value = null;
+    return;
+  }
+  const [x, y, width, height] = props.crop;
+  currentCrop.value = [
+    [x, y],
+    [x + width, y + height]
+  ];
+}, { immediate: true });
+
+const drawing = ref(false);
+const currentContour = ref<[number, number][]>([]);
+
+const imageLoaded = ref(false);
+const imageSize = ref({ width: 1, height: 1 });
+
+function onImageLoad() {
+  nextTick(() => {
+    if (imageRef.value) {
+      const { width, height } = imageRef.value.getBoundingClientRect();
+      imageSize.value = { width, height };
+    }
+    imageLoaded.value = true;
+  });
+}
+
+function toSvgPoints(contour: [number, number][]): string {
+  const { width, height } = imageSize.value;
+  return contour.map(([x, y]) => `${x * width},${y * height}`).join(' ');
+}
+
+function getReactiveSvgPoints(contour: [number, number][]) {
+  return computed(() => toSvgPoints(contour)).value;
+}
+
+function getReactiveCropPoints(crop: [[number, number], [number, number]] | null) {
+  if (!crop) return '';
+  return computed(() => {
+    const contourPts = currentCrop2RectFn(crop);
+    return toSvgPoints(contourPts);
+  }).value;
+}
+
+function getNormalizedCoordinates(event: MouseEvent | TouchEvent): [number, number] {
+  const img = imageRef.value;
+  if (!img) return [0, 0];
+  const rect = img.getBoundingClientRect();
+  let x = 0;
+  let y = 0;
+  if (event instanceof MouseEvent) {
+    x = (event.clientX - rect.left) / rect.width;
+    y = (event.clientY - rect.top) / rect.height;
+  }
+  else if (event instanceof TouchEvent && event.touches.length > 0) {
+    x = (event.touches[0]!.clientX - rect.left) / rect.width;
+    y = (event.touches[0]!.clientY - rect.top) / rect.height;
+  }
+  return [x, y];
+}
+
+function startDrawing(event: MouseEvent | TouchEvent) {
+  if (
+    (
+      (event instanceof MouseEvent && event.button === 0) ||
+      (event instanceof TouchEvent && event.touches.length === 1)
+    )
+    && props.activeLabel) {
+    // left click initiates drawing
+    drawing.value = true;
+    currentContour.value = [getNormalizedCoordinates(event)];
+    console.log('startDrawing', event);
+  }
+  else if ( event instanceof MouseEvent && event.button == 2) {
+    // right click initiates crop
+    event.preventDefault();
+    const [x, y] = getNormalizedCoordinates(event);
+    if (props.crop) { // If crop already exists, reset it
+      console.log('resetCrop');
+      emit('update:crop', null);
+    }
+    else { // Start a new crop
+      console.log('startCrop', event);
+      cropping.value = true;
+      currentCrop.value = [[x, y], [x, y]]; // start crop at the clicked point
+    }
+  }
+}
+
+function draw(event: MouseEvent | TouchEvent) {
+  // if (!drawing.value) return;
+  if (drawing.value) {
+    currentContour.value.push(getNormalizedCoordinates(event));
+  }
+  if (cropping.value && currentCrop.value) {
+    const [x, y] = getNormalizedCoordinates(event);
+    if (currentCrop.value) {
+      currentCrop.value[1] = [x, y]; // update the second point of the crop rectangle
+    }
+  }
+}
+
+function stopDrawing() {
+  if (drawing.value && props.activeLabel) {
+    // finalize the contour
+    drawing.value = false;
+
+    const updatedLabels = props.labels.map(label => {
+      if (label.id === props.activeLabel) {
+        return {
+          ...label,
+          contours: [...label.contours, [...resampleContour(currentContour.value)]],
+        };
+      }
+      return label;
+    });
+
+    emit('update:labels', updatedLabels);
+    currentContour.value = [];
+  }
+
+  if (cropping.value && currentCrop.value) {
+    // If crop is finalized, we can emit the crop update
+    console.log('finalizeCrop');
+    cropping.value = false;
+    const crop = [
+      Math.min(currentCrop.value[0][0], currentCrop.value[1][0]),
+      Math.min(currentCrop.value[0][1], currentCrop.value[1][1]),
+      Math.abs(currentCrop.value[1][0] - currentCrop.value[0][0]),
+      Math.abs(currentCrop.value[1][1] - currentCrop.value[0][1])
+    ] as [number, number, number, number];
+    currentCrop.value = null;
+    const MIN_CROP_SIZE = 0.05; // minimum size for crop to be valid
+    if (crop[2] < MIN_CROP_SIZE || crop[3] < MIN_CROP_SIZE) {
+      console.warn('Crop too small, resetting');
+      emit('update:crop', null);
+    }
+    else{
+      emit('update:crop', crop);
+    }
+  }
+}
+</script>
+
+<style scoped>
+  img {
+    -webkit-touch-callout: none;
+  }
+</style>

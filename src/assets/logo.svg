@@ -1,0 +1,10 @@
+<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- Tag Shape -->
+  <path d="M10 10 H30 L50 30 L30 50 H10 V10 Z" fill="#6366F1" stroke="#4F46E5" stroke-width="2" />
+  
+  <!-- Hole in the tag -->
+  <circle cx="15" cy="15" r="3" fill="white"/>
+
+  <!-- Checkmark inside the tag -->
+  <path d="M20 30 L26 36 L40 22" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

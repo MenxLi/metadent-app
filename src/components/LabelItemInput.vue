@@ -1,0 +1,88 @@
+<script setup lang="ts">
+import type { LabelItem } from '@/api'
+
+const model = defineModel<LabelItem>({ required: true })
+defineProps<{
+  activeContourId: string
+}>()
+
+const emit = defineEmits<{
+  (e: 'delete', id: string): void
+  (e: 'select', id: string): void
+  (e: 'select-next', ): void
+}>()
+
+function toggleLowConfidence() {
+  model.value.lowConfidence = !model.value.lowConfidence
+}
+
+function randomColor() {
+  const letters = '0123456789ABCDEF'
+  let color = '#'
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)]
+  }
+  return color
+}
+
+function clearContours() {
+  model.value.contours = []
+}
+
+function deleteLabel() {
+  emit('delete', model.value.id)
+}
+</script>
+
+<template>
+  <div
+    :class="
+      'flex items-center gap-4 text-gray-700 px-4 py-2 rounded-xl shadow-md' +
+      (model.id === activeContourId ? ' bg-cyan-50' : ' bg-white')"
+    @click="$emit('select', model.id)"
+  >
+
+    <!-- ⚠️ Low confidence toggle -->
+    <button @click="toggleLowConfidence" title="Toggle low confidence" class="text-xl w-5 cursor-pointer" tabindex="-1">
+      <template v-if="model.lowConfidence">❓</template>
+      <template v-else>✔</template>
+    </button>
+
+    <!-- 🎨 Color swatch -->
+    <div
+      :style="{ backgroundColor: model.color }"
+      class="w-6 h-6 rounded border border-black cursor-pointer"
+      tabindex="-1"
+      @click="model.color = randomColor()"
+    ></div>
+
+    <!-- 📝 Description -->
+    <input
+      v-model="model.description"
+      type="text"
+      class="flex-grow bg-transparent border-b border-gray-300 focus:outline-none focus:border-blue-600 text-md"
+      placeholder="Enter description"
+      @focus="$emit('select', model.id)"
+      @keydown="(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          $emit('select-next')
+        }
+        if (e.key === 'Delete') {
+          e.preventDefault()
+          $emit('delete', model.id)
+        }
+      }"
+    />
+
+    <!-- 🧹 Clear contours -->
+    <button @click="clearContours" title="Clear contours" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-xl shadow text-sm" tabindex="-1">
+      🧹
+    </button>
+
+    <!-- 🗑️ Delete label -->
+    <button @click="deleteLabel" title="Delete label" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-xl shadow text-sm" tabindex="-1">
+      🗑️
+    </button>
+  </div>
+</template>

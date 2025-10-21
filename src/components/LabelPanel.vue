@@ -1,0 +1,287 @@
+<script lang="ts" setup>
+  import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
+  import ImageLabeler from './ImageLabeler.vue';
+  import LabelItemInput from './LabelItemInput.vue';
+  import { useDataStore } from '@/stores/data';
+  import DescInput from './DescInput.vue';
+  import { type LabelItem, FileLabelStatus } from '@/api';
+
+  const dataStore = useDataStore();
+  const activeLabel = ref<string>("");
+  const unsavedChanges = ref(false);
+  const descInput = ref<typeof DescInput | null>(null);
+  const hideContours = ref(false);
+  const loading = ref(false);
+  const imageContainer = ref<HTMLDivElement | null>(null);
+  const imageMaxW = ref(800);
+  {
+    function updateImageMaxW() {
+      if (imageContainer.value) {
+        const { width } = imageContainer.value.getBoundingClientRect();
+        imageMaxW.value = Math.min(width - 20, 800); // 20px for padding
+      }
+    }
+    watch( () => imageContainer.value, (newValue) => { if (newValue) { updateImageMaxW(); } });
+    onMounted(() => { window.addEventListener('resize', () => { updateImageMaxW(); }); })
+    onUnmounted(() => { window.removeEventListener('resize', () => { updateImageMaxW(); }); });
+  }
+
+  watch(
+    () => dataStore.activeDataLabel,
+    (newLabel) => {
+      nextTick(() => {
+        if (newLabel) {
+          activeLabel.value = newLabel.contours[0]?.id || "";
+          if (descInput.value) {
+            descInput.value.focus();
+          }
+        }
+        unsavedChanges.value = false;
+      });
+    },
+    { immediate: true }
+  );
+  // deep watch for unsaved changes
+  watch(
+    () => dataStore.activeDataLabel,
+    () => {
+      if (!dataStore.activeDataLabel) return;
+      unsavedChanges.value = true;
+      // console.log("activeLabel altered", dataStore.activeDataLabel);
+    },
+    { immediate: true, deep: true }
+  );
+
+  const predefinedColorsScheme = [
+    '#FF5733', '#33FF57', '#3357FF', '#F1C40F', '#8E44AD',
+    '#E74C3C', '#3498DB', '#2ECC71', '#9B59B6', '#34495E',
+  ];
+
+  function focusOnLabelItem(id: string) {
+    const labelItem = document.getElementById('label-item-' + id) as HTMLDivElement;
+    if (labelItem) {
+      labelItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const textInput = labelItem.querySelector('input[type="text"]') as HTMLInputElement;
+      if (textInput) {
+        textInput.focus();
+      }
+    }
+  }
+
+  function newLabelItem() {
+    const id = Date.now().toString() + Math.random().toString(36).substring(2);
+    dataStore.activeDataLabel?.contours.push({
+      id: id,
+      lowConfidence: false,
+      description: '',
+      color: dataStore.activeDataLabel?.contours.length < predefinedColorsScheme.length
+        ? predefinedColorsScheme[dataStore.activeDataLabel?.contours.length]
+        : '#' + Math.floor(Math.random() * 16777215).toString(16),
+      contours: [],
+    } as LabelItem);
+    activeLabel.value = id;
+    // focus on the new label item text input
+    nextTick(() => {
+      focusOnLabelItem(id);
+    });
+  }
+
+  async function saveAndNext() {
+    if (unsavedChanges.value) {
+      await save();
+    }
+    await dataStore.loadNextDataItem();
+  }
+
+  async function save() {
+    console.log("Saving label...");
+    if (dataStore.activeDataLabel == null){
+      return;
+    }
+    else{
+      console.log("Saving label");
+    }
+    try {
+      loading.value = true;
+      await dataStore.saveCurrentLabel();
+      unsavedChanges.value = false;
+      await dataStore.refreshActiveDataItem();
+    }
+    catch (error) {
+      console.error("Error saving label:", error);
+      alert("Error saving label: " + error);
+    }
+    finally {
+      loading.value = false;
+    }
+  }
+
+  async function skipAndNext (){
+    if (dataStore.activeDataLabel == null){
+      return;
+    }
+    // get reason from user
+    const reason = prompt("Please enter a reason for skipping this item:", "No reason");
+    if (reason == null || reason.trim() === "") {
+      return;
+    }
+    await dataStore.skipActiveData(reason);
+    await dataStore.refreshActiveDataItem();
+    unsavedChanges.value = false;
+    try { loading.value = true; dataStore.loadNextDataItem(); }
+    catch (error) { throw error; }
+    finally { loading.value = false; }
+  }
+
+  async function unSkip (){
+    if (dataStore.activeDataLabel == null){
+      return;
+    }
+    await dataStore.unskipActiveData();
+    await dataStore.refreshActiveDataItem();
+    unsavedChanges.value = false;
+  }
+
+
+  {
+    const saveHandler = async (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey || event.altKey) && event.key === 's') {
+        event.preventDefault(); await save();
+      }
+    };
+    const saveAndNextHandler = async (event: KeyboardEvent) => {
+      if (event.altKey && event.key === 'n') {
+        event.preventDefault(); await saveAndNext();
+      }
+    };
+    const skipHandler = async (event: KeyboardEvent) => {
+      if (event.altKey && event.key === 'q') {
+        event.preventDefault(); await skipAndNext();
+      }
+    };
+    onMounted(() => {
+      window.addEventListener('keydown', saveHandler);
+      window.addEventListener('keydown', saveAndNextHandler);
+      window.addEventListener('keydown', skipHandler);
+    });
+    onUnmounted(() => {
+      window.removeEventListener('keydown', saveHandler);
+      window.removeEventListener('keydown', saveAndNextHandler);
+      window.removeEventListener('keydown', skipHandler);
+    });
+  }
+
+</script>
+
+<template>
+  <div :class="'flex flex-col gap-4 p-4 bg-white shadow-md rounded-lg' + (loading ? ' opacity-50 pointer-events-none' : '')">
+
+    <div class="flex justify-center items-center p-4 w-full rounded-lg bg-gray-100" ref="imageContainer">
+      <div class="relative" v-if="dataStore.activeDataItem && dataStore.activeDataLabel">
+        <button
+          @click.stop="hideContours = !hideContours"
+          class="absolute top-2 right-2 z-10 bg-white bg-opacity-80 text-sm px-2 py-1 rounded shadow hover:bg-opacity-100 pointer-events-auto opacity-75"
+        >
+          <svg v-if="!hideContours" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" >
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" >
+            <path d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-7-11-7a21.3 21.3 0 015.341-5.986m4.086-1.587A9.953 9.953 0 0112 5c7 0 11 7 11 7a21.3 21.3 0 01-3.752 4.834M3 3l18 18" />
+          </svg>
+        </button>
+        <ImageLabeler
+          :imageSrc="dataStore.activeDataItem.imageUrl"
+          :max-height="600"
+          :max-width="imageMaxW"
+          v-model:labels="dataStore.activeDataLabel.contours"
+          v-model:crop="dataStore.activeDataLabel.crop"
+          :activeLabel="activeLabel"
+          :hideContours="hideContours"
+          >
+        </ImageLabeler>
+      </div>
+      <p v-else class="text-gray-500 text-lg">
+        Select an image to start labeling
+      </p>
+    </div>
+
+    <DescInput
+      v-if="dataStore.activeDataItem && dataStore.activeDataLabel"
+      v-model="dataStore.activeDataLabel.overallDescription"
+      ref="descInput"
+      @enter="if (dataStore.activeDataLabel!.contours.length > 0) {
+        const id = dataStore.activeDataLabel!.contours[0]!.id;
+        focusOnLabelItem(id)
+      }
+      else {
+        newLabelItem()
+      }"
+    ></DescInput>
+
+    <div v-if="dataStore.activeDataItem && dataStore.activeDataLabel" class="flex flex-col gap-4">
+      <template
+        v-for="(label, index) in dataStore.activeDataLabel.contours" :key="label.id"
+      >
+        <LabelItemInput
+          v-model="dataStore.activeDataLabel.contours[index]!"
+          :active-contour-id=activeLabel
+          @delete="dataStore.activeDataLabel.contours.splice(index, 1)"
+          @select="(id) => activeLabel = id"
+          @select-next="() => {
+            if (index + 1 < dataStore.activeDataLabel!.contours.length) {
+              activeLabel = dataStore.activeDataLabel!.contours[index + 1]!.id;
+              focusOnLabelItem(activeLabel);
+            }
+            else {
+              newLabelItem();
+            }
+          }"
+          :id="'label-item-' + label.id"
+        />
+      </template>
+    </div>
+
+    <div class="flex justify-center" v-if="dataStore.activeDataItem && dataStore.activeDataLabel">
+      <button
+        @click="newLabelItem"
+        class="text-gray-700 bg-white hover:bg-gray-100 font-bold rounded-lg text-lg py-2 flex justify-center items-center shadow-md w-full"
+      >
+        +
+      </button>
+    </div>
+
+    <!-- Save button -->
+    <div class="flex justify-center w-full gap-2"
+    >
+      <button
+        v-if="dataStore.activeDataLabel && dataStore.activeDataItem?.status != FileLabelStatus.SKIPPED"
+        @click="skipAndNext"
+       class="text-white bg-yellow-600 hover:bg-yellow-700 font-bold rounded-xl text-lg py-2 flex justify-center items-center shadow-md max-w-1/4 w-sm">
+        Skip & Next
+      </button>
+      <button
+        v-if="dataStore.activeDataLabel && dataStore.activeDataItem?.status == FileLabelStatus.SKIPPED"
+        @click="unSkip"
+       class="text-white bg-yellow-600 hover:bg-yellow-700 font-bold rounded-xl text-lg py-2 flex justify-center items-center shadow-md max-w-1/4 w-sm">
+        Un-Skip
+      </button>
+
+      <button
+        v-if="unsavedChanges"
+        @click="save"
+        class="text-white bg-blue-600 hover:bg-blue-700 font-bold rounded-xl text-lg py-2 flex justify-center items-center shadow-md max-w-1/2 w-lg"
+      >
+        Save
+      </button>
+      <button
+        @click="saveAndNext"
+        class="text-white bg-blue-600 hover:bg-blue-700 font-bold rounded-xl text-lg py-2 flex justify-center items-center shadow-md max-w-1/2 w-lg"
+      >
+        {{ unsavedChanges ? 'Save & Next' : 'Next' }}
+      </button>
+    </div>
+
+  </div>
+
+</template>
