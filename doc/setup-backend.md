@@ -57,10 +57,12 @@ The structure should look like this:
 ```
 
 The info files should be JSON files containing metadata about each image. Essential fields include:
-- `filename`: The name of the image file.
-- `path`: A field indicating the path or category of the image.
-- `width`: The width of the image in pixels.
+- `file_name`: The name of the image file.
+- `path`: The original file path of the image within the dataset.
+- `source`: The subset of the MetaDent dataset (one of DS1, DS2, or DS3) from which this image is derived.
 - `height`: The height of the image in pixels.
+- `width`: The width of the image in pixels.
+- `id`: A unique identifier for the image.
 
 :::info
 - The name for the main project directory, image directory, and metadata directory can be customized as needed. 
