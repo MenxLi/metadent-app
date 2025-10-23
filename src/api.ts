@@ -21,7 +21,7 @@ export interface DataItem {
 }
 
 export interface DataInfo {
-  file_name: string;
+  fileName: string;
   path: string;
   source: string;
   height: number;
