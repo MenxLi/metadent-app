@@ -31,19 +31,34 @@ export const useUserStore = defineStore('UserInfo', () => {
     }
   }
 
-  async function login() : Promise<UserInfo | null> {
-    // first try to load lfss-config from url params
+  function configureOverride() {
     const urlParams = new URLSearchParams(window.location.search);
     const urlLFSSEndpoint = urlParams.get("lfss-endpoint");
     const urlLFSSToken = urlParams.get("lfss-token");
+    const urlImageDir = urlParams.get("cfg-imagedir");
+    const urlMetaDir = urlParams.get("cfg-metadir");
 
+    if (urlLFSSEndpoint) backendUrl.value = urlLFSSEndpoint;
+    if (urlLFSSToken) hashkey.value = urlLFSSToken;
+    if (urlImageDir) settings.value.imageDir = urlImageDir;
+    if (urlMetaDir) settings.value.metaDir = urlMetaDir;
+    console.log(
+      "Configured overrides from URL parameters",
+      urlLFSSEndpoint, urlLFSSToken, urlImageDir, urlMetaDir
+    );
+  }
+
+  async function login() : Promise<UserInfo | null> {
+
+    configureOverride();
     backend.configureLFSS({
-      endpoint: urlLFSSEndpoint || backendUrl.value,
-      token: urlLFSSToken || hashkey.value
+      endpoint: backendUrl.value,
+      token: hashkey.value
     }).configurePath({
       imageDir: settings.value.imageDir,
       metaDir: settings.value.metaDir,
     })
+
     const userInfo = await backend.auth();
     if (userInfo) {
       user.value = userInfo;

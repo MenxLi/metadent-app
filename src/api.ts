@@ -69,16 +69,16 @@ export class BackendCalls {
   }
 
   configurePath({ imageDir, metaDir, }: {
-    imageDir: string;
-    metaDir: string;
+    imageDir?: string;
+    metaDir?: string;
   }): BackendCalls {
     const fmtPath = (path: string) => {
       if (path.startsWith("/")) { path = path.slice(1); }
       if (path.endsWith("/")) { return path; }
       else { return path + "/"; }
     }
-    this.imageDir = fmtPath(imageDir);
-    this.metaDir = fmtPath(metaDir);
+    if (imageDir) this.imageDir = fmtPath(imageDir);
+    if (metaDir) this.metaDir = fmtPath(metaDir);
     return this
   }
 
