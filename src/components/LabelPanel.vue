@@ -31,7 +31,7 @@
     (newLabel) => {
       nextTick(() => {
         if (newLabel) {
-          activeLabel.value = newLabel.contours[0]?.id || "";
+          activeLabel.value = newLabel.items[0]?.id || "";
           if (descInput.value) {
             descInput.value.focus();
           }
@@ -70,12 +70,12 @@
 
   function newLabelItem() {
     const id = Date.now().toString() + Math.random().toString(36).substring(2);
-    dataStore.activeDataLabel?.contours.push({
+    dataStore.activeDataLabel?.items.push({
       id: id,
       lowConfidence: false,
       description: '',
-      color: dataStore.activeDataLabel?.contours.length < predefinedColorsScheme.length
-        ? predefinedColorsScheme[dataStore.activeDataLabel?.contours.length]
+      color: dataStore.activeDataLabel?.items.length < predefinedColorsScheme.length
+        ? predefinedColorsScheme[dataStore.activeDataLabel?.items.length]
         : '#' + Math.floor(Math.random() * 16777215).toString(16),
       contours: [],
     } as LabelItem);
@@ -194,7 +194,7 @@
           :imageSrc="dataStore.activeDataItem.imageUrl"
           :max-height="600"
           :max-width="imageMaxW"
-          v-model:labels="dataStore.activeDataLabel.contours"
+          v-model:labels="dataStore.activeDataLabel.items"
           v-model:crop="dataStore.activeDataLabel.crop"
           :activeLabel="activeLabel"
           :hideContours="hideContours"
@@ -210,8 +210,8 @@
       v-if="dataStore.activeDataItem && dataStore.activeDataLabel"
       v-model="dataStore.activeDataLabel.overallDescription"
       ref="descInput"
-      @enter="if (dataStore.activeDataLabel!.contours.length > 0) {
-        const id = dataStore.activeDataLabel!.contours[0]!.id;
+      @enter="if (dataStore.activeDataLabel!.items.length > 0) {
+        const id = dataStore.activeDataLabel!.items[0]!.id;
         focusOnLabelItem(id)
       }
       else {
@@ -221,16 +221,16 @@
 
     <div v-if="dataStore.activeDataItem && dataStore.activeDataLabel" class="flex flex-col gap-4">
       <template
-        v-for="(label, index) in dataStore.activeDataLabel.contours" :key="label.id"
+        v-for="(label, index) in dataStore.activeDataLabel.items" :key="label.id"
       >
         <LabelItemInput
-          v-model="dataStore.activeDataLabel.contours[index]!"
+          v-model="dataStore.activeDataLabel.items[index]!"
           :active-contour-id=activeLabel
-          @delete="dataStore.activeDataLabel.contours.splice(index, 1)"
+          @delete="dataStore.activeDataLabel.items.splice(index, 1)"
           @select="(id) => activeLabel = id"
           @select-next="() => {
-            if (index + 1 < dataStore.activeDataLabel!.contours.length) {
-              activeLabel = dataStore.activeDataLabel!.contours[index + 1]!.id;
+            if (index + 1 < dataStore.activeDataLabel!.items.length) {
+              activeLabel = dataStore.activeDataLabel!.items[index + 1]!.id;
               focusOnLabelItem(activeLabel);
             }
             else {
