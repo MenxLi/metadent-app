@@ -23,7 +23,7 @@
 
 <template>
   <div class="w-full h-full flex flex-col bg-white gap-2">
-    <div :class="'w-full h-full flex bg-white overflow-y-auto shadow-inner' + (uiStateStore.pageIndexLoading ? ' opacity-50' : '')">
+    <div :class="'w-full h-full flex bg-white overflow-y-auto shadow-inner items-start' + (uiStateStore.pageIndexLoading ? ' opacity-50' : '')">
       <DataCard
         :items="dataStore.dataItems" @select="(item) => dataStore.setActiveDataItem(item)"
         :select="dataStore.activeDataItem"
