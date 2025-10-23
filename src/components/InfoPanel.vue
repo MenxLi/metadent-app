@@ -30,8 +30,9 @@ const annotators = computed(() => dataStore.activeDataLabel?.annotators)
   </div>
   <div v-if="dataInfo" class="flex items-center justify-between bg-white shadow-md p-4 rounded-lg">
     <div class="bg-transparent p-2 rounded text-gray-700 text-xs grid [grid-template-columns:auto_1fr] gap-x-2 gap-y-1">
-      <div class="font-semibold">Filename:</div><div>{{ dataInfo.currentFilename }}</div>
-      <div class="font-semibold">Path:</div><div>{{ dataInfo.filterPath }}</div>
+      <div class="font-semibold">Filename:</div><div>{{ dataInfo.fileName }}</div>
+      <!-- <div class="font-semibold">Path:</div><div>{{ dataInfo.path }}</div> -->
+      <div class="font-semibold">Source:</div><div>{{ dataInfo.source }}</div>
       <div class="font-semibold">Dimensions:</div><div>{{ dataInfo.width }}×{{ dataInfo.height }}</div>
     </div>
 

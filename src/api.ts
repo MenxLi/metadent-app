@@ -21,14 +21,12 @@ export interface DataItem {
 }
 
 export interface DataInfo {
-  originalPath: string;
-  filterPath: string;
-  currentFilename: string;
-  width: number;
+  fileName: string;
+  path: string;
+  source: string;
   height: number;
-  fileSize: number;
-  imageHash: string;
-  link: string;
+  width: number;
+  id: number;
 }
 
 export interface LockStatus {
@@ -38,9 +36,10 @@ export interface LockStatus {
 }
 
 export interface DataLabel {
+  image_id: number;
   annotators: string[];
   overallDescription: string;
-  contours: LabelItem[];
+  items: LabelItem[];
   crop: [number, number, number, number] | null; // [x, y, width, height] in normalized coordinates [0,1]
 }
 
@@ -64,7 +63,7 @@ export class BackendCalls {
     this.metaDir = '';
   }
 
-  configureLFSS(config: Config) : BackendCalls {
+  configureLFSS(config: Config): BackendCalls {
     this.connector.config = config;
     return this
   }
@@ -72,7 +71,7 @@ export class BackendCalls {
   configurePath({ imageDir, metaDir, }: {
     imageDir: string;
     metaDir: string;
-  }) : BackendCalls {
+  }): BackendCalls {
     const fmtPath = (path: string) => {
       if (path.startsWith("/")) { path = path.slice(1); }
       if (path.endsWith("/")) { return path; }
@@ -97,7 +96,7 @@ export class BackendCalls {
     }
   }
 
-  async countData() : Promise<number> {
+  async countData(): Promise<number> {
     return await this.connector.countFiles(this.imageDir, { flat: true });
   }
 
@@ -163,9 +162,10 @@ export class BackendCalls {
     const meta = await this.connector.getMetadata(labelFile);
     if (meta == null) {
       return {
+        image_id: 0,
         annotators: [],
         overallDescription: "",
-        contours: [],
+        items: [],
         crop: null, // no crop by default
       }
     }
@@ -225,7 +225,7 @@ export class BackendCalls {
         skippath2fname[skipf] = fileName;
         return skipf;
       });
-      if (skipFiles.length){
+      if (skipFiles.length) {
         const multres = await this.connector.getMultipleText(skipFiles, { skipContent: true });
         const existSkipFiles = Object.keys(multres).filter((fpath) => multres[fpath] != null);
         existSkipFiles.forEach((fpath) => {
@@ -272,7 +272,7 @@ export class BackendCalls {
     {
       skipUserLock = null as string | null,
     }
-  ) : Promise<DataItem[]> {
+  ): Promise<DataItem[]> {
     const files = await this.connector.listFiles(this.imageDir, {
       offset: offset,
       limit: limit,
@@ -309,7 +309,7 @@ export class BackendCalls {
   async getDataInfo(fileName: string): Promise<DataInfo> {
     const ret = await this.connector.getJson(this._getDataMetaDir(fileName) + "info.json");
     const validateDataInfo = (data: DataInfo): boolean => {
-      return ['originalPath', 'filterPath', 'currentFilename', 'width', 'height', 'fileSize', 'imageHash', 'link'].every(prop => prop in data);
+      return ['file_name', 'path', 'source', 'height', 'width', 'id'].every(prop => prop in data);
     }
     if (!validateDataInfo(ret as DataInfo)) {
       throw new Error("Invalid data info format for " + fileName);
@@ -407,7 +407,7 @@ export async function imageChatCompletion(
   }
 
   // Step 1: Fetch image as blob
-  const response = await fetch(imgUrl, {mode: "cors"});
+  const response = await fetch(imgUrl, { mode: "cors" });
   if (!response.ok) {
     throw new Error(`Failed to fetch image: ${response.statusText}`);
   }
