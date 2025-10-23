@@ -50,7 +50,6 @@ export const useUserStore = defineStore('UserInfo', () => {
 
   async function login() : Promise<UserInfo | null> {
 
-    configureOverride();
     backend.configureLFSS({
       endpoint: backendUrl.value,
       token: hashkey.value
@@ -80,25 +79,20 @@ export const useUserStore = defineStore('UserInfo', () => {
    */
   function verifyLoginRedirect() {
     const router = useRouter();
-    if (!user.value) {
-      router.push({ name: 'login' });
-    }
-    else {
-      login()     // verify the token
-        .then((user) => {
-          if (!user) {
-            router.push({ name: 'login' });
-          }
-        })
-        .catch(() => {
+    login()     // verify the token
+      .then((user) => {
+        if (!user) {
           router.push({ name: 'login' });
-        });
-    }
+        }
+      })
+      .catch(() => {
+        router.push({ name: 'login' });
+      });
   }
 
   return {
     hashkey, user, login, logout, backendUrl,
-    verifyLoginRedirect, backend, settings,
+    configureOverride, verifyLoginRedirect, backend, settings,
   }
 }, {
   persist: {

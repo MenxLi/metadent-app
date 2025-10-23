@@ -10,6 +10,7 @@
 
   const router = useRouter()
   const userStore = useUserStore()
+  userStore.configureOverride()
   userStore.verifyLoginRedirect()
 
   const dataStore = useDataStore()
