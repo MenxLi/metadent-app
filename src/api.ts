@@ -338,9 +338,9 @@ export class BackendCalls {
    * if the file is already locked by another user, return [false, lockInfo by the other user]
    * This will catch write permission errors internally and will not throw for this
    */
-  async tryLock(fitem: DataItem): Promise<[boolean, LockStatus]> {
+  async tryLock(fitem: DataItem, user: UserInfo | null = null): Promise<[boolean, LockStatus]> {
     const lockFile = this._getDataMetaDir(fitem.fileName) + "lock.json";
-    const user = await this.auth() as UserInfo;
+    user = user || (await this.auth());
 
     const EXPIRE_TIME = 10 * 60 * 1000; // 10 min
     const doLock = async () => {
@@ -361,7 +361,7 @@ export class BackendCalls {
         console.error("Failed to create lock file at", lockFile, e);
         return {
           ...lockInfo,
-          lockedBy: "unknown",
+          lockedBy: "",
         }
       }
     }
@@ -373,7 +373,7 @@ export class BackendCalls {
 
     // already locked, check if the lock is by the same user or is expired
     const lockInfo = await this.connector.getJson(lockFile) as LockStatus;
-    if (lockInfo.lockedBy == user.username || new Date(lockInfo.lockExpire) < new Date()) {
+    if (lockInfo.lockedBy == user!.username || new Date(lockInfo.lockExpire) < new Date()) {
       return [true, await doLock()];
     }
     else {
@@ -387,11 +387,18 @@ export class BackendCalls {
    * if the file is not locked by the current user, do nothing
    * This will catch write permission errors internally and will not throw for this
    */
-  async tryUnlock(fitem: DataItem): Promise<void> {
+  async tryUnlock(fitem: DataItem, user: UserInfo | null = null): Promise<void> {
     const lockFile = this._getDataMetaDir(fitem.fileName) + "lock.json";
-    const user = await this.auth();
+    user = user || (await this.auth());
     if (user == null) { return; }    // should be impossible
-    const lockInfo = await this.connector.getJson(lockFile) as LockStatus;
+    let lockInfo: LockStatus;
+    try{
+      lockInfo= await this.connector.getJson(lockFile) as LockStatus;
+    }
+    catch(e){
+      console.error("Failed to get lock file at", lockFile, e);
+      return;
+    }
     if (lockInfo.lockedBy == user.username || new Date(lockInfo.lockExpire) < new Date()) {
       try{
         await this.connector.delete(lockFile);

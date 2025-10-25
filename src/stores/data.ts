@@ -63,7 +63,7 @@ export const useDataStore = defineStore('dataStore', () => {
   async function unlockActiveDataItem() {
     if (activeDataItem.value) {
       const backend = userStore.backend;
-      await backend.tryUnlock(activeDataItem.value);
+      await backend.tryUnlock(activeDataItem.value, userStore.user);
     }
     else{
       console.warn("no active data item to unlock");
@@ -99,10 +99,15 @@ export const useDataStore = defineStore('dataStore', () => {
 
   // return if the lock is successful acquired, and the current lock status
   async function setActiveDataItem(item: DataItem): Promise<[boolean, LockStatus]> {
+    uiStateStore.pageIndexLoading = true;
+    uiStateStore.labelPanelLoading = true;
+
     uiStateStore.msg.reset();
 
     // first unlock the previous item if any
-    unlockActiveDataItem();
+    await unlockActiveDataItem();
+
+    resetActiveData();
 
     const backend = userStore.backend;
 
@@ -123,15 +128,13 @@ export const useDataStore = defineStore('dataStore', () => {
     }
 
     const fn_fetchLock = async () => {
-      return await backend.tryLock(item)
+      return await backend.tryLock(item, userStore.user);
     }
 
     const fn_fetchDataLabel = async () => {
       return await backend.getLabel(item.fileName);
     }
 
-    uiStateStore.pageIndexLoading = true;
-    uiStateStore.labelPanelLoading = true;
     let lockInfo: [boolean, LockStatus];
     let dataInfo: DataInfo;
     let dataLabel: DataLabel;
