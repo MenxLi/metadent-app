@@ -7,6 +7,7 @@ import { type UserInfo } from '@/api'
 interface UserSettings {
   imageDir: string;
   metaDir: string;
+  loadNextGoToUnlabeled: boolean;
   openaiAPIBase: string;
   openaiAPIKey: string;
   openaiModel: string;
@@ -24,10 +25,11 @@ export const useUserStore = defineStore('UserInfo', () => {
     return {
       imageDir: "public/images/",
       metaDir: "public/meta/",
+      loadNextGoToUnlabeled: true,
       openaiAPIBase: "https://dashscope.aliyuncs.com/compatible-mode/v1",
       openaiAPIKey: "",
       openaiModel: "qwen-vl-plus",
-      descPrompt: "请以口腔医生/牙科工作者的视角简要描述这张图像的主要内容和拍摄角度。你的回答需要简短、表达自然流畅，请避免主观描述，只谈论图像内容。"
+      descPrompt: "Please provide a detailed description of the image content.",
     }
   }
 
@@ -37,14 +39,16 @@ export const useUserStore = defineStore('UserInfo', () => {
     const urlLFSSToken = urlParams.get("lfss-token");
     const urlImageDir = urlParams.get("cfg-imagedir");
     const urlMetaDir = urlParams.get("cfg-metadir");
+    const urlNextUnlabeled = urlParams.get("cfg-next-goto-unlabeled");
 
     if (urlLFSSEndpoint) backendUrl.value = urlLFSSEndpoint;
     if (urlLFSSToken) hashkey.value = urlLFSSToken;
     if (urlImageDir) settings.value.imageDir = urlImageDir;
     if (urlMetaDir) settings.value.metaDir = urlMetaDir;
+    if (urlNextUnlabeled) settings.value.loadNextGoToUnlabeled = (urlNextUnlabeled === 'true' || urlNextUnlabeled === '1');
     console.log(
       "Configured overrides from URL parameters",
-      urlLFSSEndpoint, urlLFSSToken, urlImageDir, urlMetaDir
+      {urlLFSSEndpoint, urlLFSSToken, urlImageDir, urlMetaDir, urlNextUnlabeled}
     );
   }
 

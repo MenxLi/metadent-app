@@ -18,6 +18,7 @@ watch(showWindow, val => emit('update:show', val))
 const userStore = useUserStore()
 const imageDir = ref(userStore.settings.imageDir)
 const metaDir = ref(userStore.settings.metaDir)
+const loadNextGoToUnlabeled = ref(userStore.settings.loadNextGoToUnlabeled)
 const apiKey = ref(userStore.settings.openaiAPIKey)
 const apiBase = ref(userStore.settings.openaiAPIBase)
 const selectedModel = ref(userStore.settings.openaiModel)
@@ -55,6 +56,17 @@ function saveSettings() {
           class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
           placeholder="Enter metadata directory"
         />
+      </div>
+      <div class="flex items-center gap-2">
+        <input
+          v-model="loadNextGoToUnlabeled"
+          type="checkbox"
+          id="loadNextGoToUnlabeled"
+          class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        />
+        <label for="loadNextGoToUnlabeled" class="text-sm font-medium text-gray-700">
+          Next button loads unlabeled image
+        </label>
       </div>
 
       <details>

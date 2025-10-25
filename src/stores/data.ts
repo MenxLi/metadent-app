@@ -201,6 +201,18 @@ export const useDataStore = defineStore('dataStore', () => {
 
     async function _loadNextDataItem() {
       await refreshLabelStatus();
+      if (!userStore.settings.loadNextGoToUnlabeled) {
+        if (activeDataItem.value) {
+          const idx = dataItems.value.findIndex(item => item.fileName === activeDataItem.value!.fileName);
+          if (idx < dataItems.value.length - 1) {
+            const nextItem = dataItems.value[idx + 1]!;
+            await setActiveDataItem(nextItem);
+            return;
+          }
+          alert("This is the last item on this page. ");
+          return;
+        }
+      }
       if (activeDataItem.value) {
         let idx = dataItems.value.findIndex(item => item.fileName === activeDataItem.value!.fileName);
         while (idx < dataItems.value.length - 1) {
