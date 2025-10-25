@@ -104,13 +104,11 @@ export const useDataStore = defineStore('dataStore', () => {
     // first unlock the previous item if any
     unlockActiveDataItem();
 
-    activeDataItem.value = item;
-
     const backend = userStore.backend;
 
     const fsDocLink = "https://menxli.github.io/metadent-app/docs/setup-backend.html#prepare-files-for-labeling";
 
-    const fn_updateDataInfo = async () => {
+    const fn_fetchDataInfo = async () => {
       let dataInfo: DataInfo;
       try{ dataInfo = await backend.getDataInfo(item.fileName); }
       catch(e){
@@ -121,20 +119,21 @@ export const useDataStore = defineStore('dataStore', () => {
         );
         throw e;
       }
-      activeDataInfo.value = dataInfo;
+      return dataInfo;
     }
 
-    const fn_getLock = async () => {
+    const fn_fetchLock = async () => {
       return await backend.tryLock(item)
     }
 
-    const fn_updateDataLabel = async () => {
-      const dataLabel = await backend.getLabel(item.fileName);
-      activeDataLabel.value = dataLabel;
+    const fn_fetchDataLabel = async () => {
+      return await backend.getLabel(item.fileName);
     }
 
     useUiStateStore().pageIndexLoading = true;
-    let ret;
+    let lockInfo: [boolean, LockStatus];
+    let dataInfo: DataInfo;
+    let dataLabel: DataLabel;
     try {
       if (! await backend.isInfoAvailable(item.fileName)) {
         uiStateStore.msg.set(
@@ -144,11 +143,16 @@ export const useDataStore = defineStore('dataStore', () => {
         );
         throw new Error("Data info not available for " + item.fileName);
       }
-      ret = await Promise.all([
-        fn_getLock(),
-        fn_updateDataInfo(),
-        fn_updateDataLabel(),
+      [lockInfo, dataInfo, dataLabel] = await Promise.all([
+        fn_fetchLock(),
+        fn_fetchDataInfo(),
+        fn_fetchDataLabel(),
       ]);
+      // sync update
+      console.log("set active data", item, dataInfo!, dataLabel!);
+      activeDataItem.value = item;
+      activeDataInfo.value = dataInfo;
+      activeDataLabel.value = dataLabel;
       await refreshLabelStatus()
     }
     catch (e) { throw e; }
@@ -156,7 +160,7 @@ export const useDataStore = defineStore('dataStore', () => {
       useUiStateStore().pageIndexLoading = false;
     }
 
-    const [lockAcquired, lock] = ret[0];
+    const [lockAcquired, lock] = lockInfo;
     activeDataLock.value = [lockAcquired, lock];
     if (lockAcquired) {
       console.debug("lock acquired", lock);
