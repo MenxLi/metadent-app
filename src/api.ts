@@ -336,6 +336,7 @@ export class BackendCalls {
    * Try to lock a file for labeling,
    * if the lock is successfully acquired, return [true, lockInfo by the current user]
    * if the file is already locked by another user, return [false, lockInfo by the other user]
+   * This will catch write permission errors internally and will not throw for this
    */
   async tryLock(fitem: DataItem): Promise<[boolean, LockStatus]> {
     const lockFile = this._getDataMetaDir(fitem.fileName) + "lock.json";
@@ -348,12 +349,21 @@ export class BackendCalls {
         lockTime: new Date().toISOString(),
         lockExpire: new Date(Date.now() + EXPIRE_TIME).toISOString(), // 1 hour
       };
-      await this.connector.putJson(lockFile, lockInfo, {
-        conflict: "overwrite",
-      });
-      console.debug("lock file created at", lockFile);
-      console.debug("lock info", lockInfo);
-      return lockInfo;
+      try{
+        await this.connector.putJson(lockFile, lockInfo, {
+          conflict: "overwrite",
+        });
+        console.debug("lock file created at", lockFile);
+        console.debug("lock info", lockInfo);
+        return lockInfo;
+      }
+      catch(e){
+        console.error("Failed to create lock file at", lockFile, e);
+        return {
+          ...lockInfo,
+          lockedBy: "unknown",
+        }
+      }
     }
 
     // lock file does not exist, create it
@@ -375,6 +385,7 @@ export class BackendCalls {
   /**
    * Try to unlock a file for labeling,
    * if the file is not locked by the current user, do nothing
+   * This will catch write permission errors internally and will not throw for this
    */
   async tryUnlock(fitem: DataItem): Promise<void> {
     const lockFile = this._getDataMetaDir(fitem.fileName) + "lock.json";
@@ -382,8 +393,13 @@ export class BackendCalls {
     if (user == null) { return; }    // should be impossible
     const lockInfo = await this.connector.getJson(lockFile) as LockStatus;
     if (lockInfo.lockedBy == user.username || new Date(lockInfo.lockExpire) < new Date()) {
-      await this.connector.delete(lockFile);
-      console.debug("lock file deleted at", lockFile);
+      try{
+        await this.connector.delete(lockFile);
+        console.debug("lock file deleted at", lockFile);
+      }
+      catch(e){
+        console.error("Failed to delete lock file at", lockFile, e);
+      }
     }
   }
 }

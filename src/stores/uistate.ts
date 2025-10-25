@@ -24,6 +24,7 @@ export const useUiStateStore = defineStore('uiState', () => {
   const pageIndex: Ref<number> = ref(0);
   const pageMax: Ref<number> = ref(0);
   const pageIndexLoading: Ref<boolean> = ref(false);
+  const labelPanelLoading: Ref<boolean> = ref(false);
   const msg: Ref<UiMessage> = ref(new UiMessage(""));
 
   const setPageIndex = (index: number) => {
@@ -43,6 +44,7 @@ export const useUiStateStore = defineStore('uiState', () => {
     pageIndex,
     pageMax,
     pageIndexLoading,
+    labelPanelLoading,
     PAGE_SIZE,
     setPageIndex,
   }

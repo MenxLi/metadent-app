@@ -130,7 +130,8 @@ export const useDataStore = defineStore('dataStore', () => {
       return await backend.getLabel(item.fileName);
     }
 
-    useUiStateStore().pageIndexLoading = true;
+    uiStateStore.pageIndexLoading = true;
+    uiStateStore.labelPanelLoading = true;
     let lockInfo: [boolean, LockStatus];
     let dataInfo: DataInfo;
     let dataLabel: DataLabel;
@@ -157,7 +158,8 @@ export const useDataStore = defineStore('dataStore', () => {
     }
     catch (e) { throw e; }
     finally {
-      useUiStateStore().pageIndexLoading = false;
+      uiStateStore.labelPanelLoading = false;
+      uiStateStore.pageIndexLoading = false;
     }
 
     const [lockAcquired, lock] = lockInfo;

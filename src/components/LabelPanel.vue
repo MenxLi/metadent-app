@@ -3,10 +3,12 @@
   import ImageLabeler from './ImageLabeler.vue';
   import LabelItemInput from './LabelItemInput.vue';
   import { useDataStore } from '@/stores/data';
+  import { useUiStateStore } from '@/stores/uistate';
   import DescInput from './DescInput.vue';
   import { type LabelItem, FileLabelStatus } from '@/api';
 
   const dataStore = useDataStore();
+  const uiStateStore = useUiStateStore();
   const activeLabel = ref<string>("");
   const unsavedChanges = ref(false);
   const descInput = ref<typeof DescInput | null>(null);
@@ -174,7 +176,7 @@
 </script>
 
 <template>
-  <div :class="'flex flex-col gap-4 p-4 bg-white shadow-md rounded-lg' + (loading ? ' opacity-50 pointer-events-none' : '')">
+  <div :class="'flex flex-col gap-4 p-4 bg-white shadow-md rounded-lg' + (loading ? ' opacity-50 pointer-events-none' : '')" v-if="!uiStateStore.labelPanelLoading">
 
     <div class="flex justify-center items-center p-4 w-full rounded-lg bg-gray-100" ref="imageContainer">
       <div class="relative" v-if="dataStore.activeDataItem && dataStore.activeDataLabel">
@@ -282,6 +284,11 @@
       </button>
     </div>
 
+  </div>
+  <div v-else class="flex justify-center items-center p-8 w-full rounded-lg bg-gray-100">
+    <div class="text-gray-500 text-lg animate-pulse">
+      Loading...
+    </div>
   </div>
 
 </template>
