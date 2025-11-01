@@ -1,5 +1,8 @@
+:::info
+**The documentation will be updated with the source code release.**
+:::
 
-## Project Setup
+<!-- ## Project Setup
 
 ```sh
 npm install
@@ -15,10 +18,4 @@ npm run dev
 
 ```sh
 npm run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+``` -->

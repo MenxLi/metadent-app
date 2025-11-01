@@ -37,7 +37,7 @@ async function handleLogin() {
 <template>
   <div class="w-full h-full flex items-center justify-center bg-gray-100">
     <div class="bg-white p-8 rounded-2xl shadow-md w-full max-w-md mx-4 flex flex-col gap-2">
-      <h1 class="text-2xl font-semibold mb-6 text-center">MetaDent-App Login</h1>
+      <h1 class="text-2xl font-semibold mb-6 text-center">App Login</h1>
       <p class="mb-4 text-gray-600 text-sm">
         The labeling tool connects to an <a href="https://github.com/menxli/lfss" target="_blank" class="text-blue-500 underline"><b>LFSS</b></a> backend.
         Please provide the LFSS backend URL, and your access token for authentication.

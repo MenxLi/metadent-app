@@ -17,7 +17,7 @@ export default defineConfig({
         text: 'Setup',
         items: [
           { text: 'Setup Backend', link: '/setup-backend' },
-          { text: 'Configure Frontend', link: '/setup-configure' },
+          { text: 'App Usage', link: '/app-usage' },
           { text: 'Build from Source', link: '/setup-build' }
         ]
       }

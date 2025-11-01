@@ -13,7 +13,7 @@ You can also deploy LFSS on a remote server or cloud service for production use,
 
 ## LFSS Server Setup
 
-To set up LFSS for use with the MetaDent App, follow these steps on the server where you want to host:
+To set up LFSS for use with the MetaDent App, follow these steps on the server where you want to host (your local machine for this guide):
 
 Install LFSS:
 ```sh
