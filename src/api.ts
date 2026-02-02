@@ -64,6 +64,7 @@ export class BackendCalls {
   }
 
   configureLFSS(config: Config): BackendCalls {
+    console.log("Configuring LFSS connector", config)
     this.connector.config = config;
     return this
   }
