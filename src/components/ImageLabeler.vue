@@ -59,7 +59,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, defineProps, defineEmits, computed, nextTick, watch } from 'vue';
+import { ref, computed, nextTick, watch } from 'vue';
 import type { LabelItem } from '@/api';
 import { resampleContour } from '@/utils';
 
@@ -207,9 +207,21 @@ function stopDrawing() {
 
     const updatedLabels = props.labels.map(label => {
       if (label.id === props.activeLabel) {
+        const resampledContour = resampleContour(currentContour.value);
+        {
+          // check if resampledContour has at least some points
+          const area = Math.abs(resampledContour.reduce((acc, point, index) => {
+            const nextPoint = resampledContour[(index + 1) % resampledContour.length];
+            return acc + (point[0] * nextPoint![1] - nextPoint![0] * point[1]);
+          }, 0)) / 2;
+          if (area < 1e-4) {
+            console.warn('Contour area too small, ignoring');
+            return label;
+          }
+        }
         return {
           ...label,
-          contours: [...label.contours, [...resampleContour(currentContour.value)]],
+          contours: [...label.contours, [...resampledContour]],
         };
       }
       return label;
