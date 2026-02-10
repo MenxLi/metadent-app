@@ -19,19 +19,20 @@ const userStore = useUserStore()
 const imageDir = ref(userStore.settings.imageDir)
 const metaDir = ref(userStore.settings.metaDir)
 const loadNextGoToUnlabeled = ref(userStore.settings.loadNextGoToUnlabeled)
-const apiKey = ref(userStore.settings.openaiAPIKey)
-const apiBase = ref(userStore.settings.openaiAPIBase)
-const selectedModel = ref(userStore.settings.openaiModel)
-const descriptionPrompt = ref(userStore.settings.descPrompt)
-const availableModels = ['qwen-vl-max', 'qwen-vl-plus']
+const enableAIAutoGen = ref(userStore.settings.enableAIAutoGen)
+const aiBackendUrl = ref(userStore.settings.aiBackendUrl)
 
 function saveSettings() {
+  if (enableAIAutoGen.value && !aiBackendUrl.value.trim()) {
+    userStore.settings.enableAIAutoGen = false
+    alert('AI backend URL is required when AI auto generation is enabled.')
+    return
+  }
+
   userStore.settings.imageDir = imageDir.value
   userStore.settings.metaDir = metaDir.value
-  userStore.settings.openaiAPIKey = apiKey.value
-  userStore.settings.openaiAPIBase = apiBase.value
-  userStore.settings.openaiModel = selectedModel.value
-  userStore.settings.descPrompt = descriptionPrompt.value
+  userStore.settings.enableAIAutoGen = enableAIAutoGen.value
+  userStore.settings.aiBackendUrl = aiBackendUrl.value
   showWindow.value = false
 }
 </script>
@@ -69,52 +70,25 @@ function saveSettings() {
         </label>
       </div>
 
-      <details>
-        <summary class="cursor-pointer text-sm font-medium text-gray-700">VLM Settings</summary>
-        <div class="mt-2 flex flex-col gap-4">
-          <!-- Advanced settings content can go here if needed -->
-          <div class="flex flex-col">
-            <label class="text-sm font-medium text-gray-700">API Base</label>
-            <input
-              v-model="apiBase"
-              type="text"
-              class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            />
-          </div>
+      <div class="border-t pt-4">
+        <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <input type="checkbox" v-model="enableAIAutoGen" />
+          Enable AI to automatically generate descriptions
+        </label>
+      </div>
 
-          <div class="flex flex-col">
-            <label class="text-sm font-medium text-gray-700">API Key</label>
-            <input
-              v-model="apiKey"
-              type="password"
-              placeholder="Please enter your OpenAI API key"
-              class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            />
-          </div>
-
-          <div class="flex flex-col">
-            <label class="text-sm font-medium text-gray-700">Description Prompt</label>
-            <textarea
-              v-model="descriptionPrompt"
-              placeholder="Your description prompt here"
-              class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm h-fit"
-              rows="5"
-            ></textarea>
-          </div>
-
-          <div class="flex flex-col">
-            <label class="text-sm font-medium text-gray-700">Model</label>
-            <select
-              v-model="selectedModel"
-              class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            >
-              <option v-for="model in availableModels" :key="model" :value="model">
-                {{ model }}
-              </option>
-            </select>
-          </div>
-        </div>
-      </details>
+      <div v-if="enableAIAutoGen" class="flex flex-col">
+        <label class="text-sm font-medium text-gray-700">
+          AI Backend Endpoint
+        </label>
+        <input
+          v-model="aiBackendUrl"
+          type="text"
+          placeholder="http://xxx.xx.xx.xx:xxxx/infer"
+          class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm
+                 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
 
       <div class="flex justify-end gap-2 pt-2">
         <button

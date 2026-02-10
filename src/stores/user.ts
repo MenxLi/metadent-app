@@ -8,10 +8,8 @@ interface UserSettings {
   imageDir: string;
   metaDir: string;
   loadNextGoToUnlabeled: boolean;
-  openaiAPIBase: string;
-  openaiAPIKey: string;
-  openaiModel: string;
-  descPrompt: string;
+  enableAIAutoGen: boolean;
+  aiBackendUrl: string;
 }
 
 export const useUserStore = defineStore('UserInfo', () => {
@@ -26,10 +24,8 @@ export const useUserStore = defineStore('UserInfo', () => {
       imageDir: "public/images/",
       metaDir: "public/meta/",
       loadNextGoToUnlabeled: true,
-      openaiAPIBase: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-      openaiAPIKey: "",
-      openaiModel: "qwen-vl-plus",
-      descPrompt: "Please provide a detailed description of the image content.",
+      enableAIAutoGen: true,
+      aiBackendUrl: "",
     }
   }
 
@@ -48,11 +44,11 @@ export const useUserStore = defineStore('UserInfo', () => {
     if (urlNextUnlabeled) settings.value.loadNextGoToUnlabeled = (urlNextUnlabeled === 'true' || urlNextUnlabeled === '1');
     console.log(
       "Configured overrides from URL parameters",
-      {urlLFSSEndpoint, urlLFSSToken, urlImageDir, urlMetaDir, urlNextUnlabeled}
+      { urlLFSSEndpoint, urlLFSSToken, urlImageDir, urlMetaDir, urlNextUnlabeled }
     );
   }
 
-  async function login() : Promise<UserInfo | null> {
+  async function login(): Promise<UserInfo | null> {
 
     backend.configureLFSS({
       endpoint: backendUrl.value,
@@ -78,6 +74,11 @@ export const useUserStore = defineStore('UserInfo', () => {
     settings.value = defaultSettings();
   }
 
+
+  function disableAIAutoGen() {
+    settings.value.enableAIAutoGen = false
+  }
+
   /**
    * Verify if the user is logged in, if not, redirect to login page
    */
@@ -97,6 +98,7 @@ export const useUserStore = defineStore('UserInfo', () => {
   return {
     hashkey, user, login, logout, backendUrl,
     configureOverride, verifyLoginRedirect, backend, settings,
+    disableAIAutoGen,
   }
 }, {
   persist: {

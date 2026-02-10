@@ -35,7 +35,6 @@
 <script setup lang="ts">
   import { ref } from 'vue'
   import UserSettings from './UserSettings.vue';
-  import { defineProps, defineEmits } from 'vue'
   import type { UserInfo } from '../api' // adjust this path based on your project
 
   defineProps<{
