@@ -21,7 +21,6 @@
 </template>
 
 <script setup lang="ts">
-  import { defineProps, defineEmits } from 'vue'
   import { type DataItem, FileLabelStatus } from '@/api'
 
   defineProps<{
