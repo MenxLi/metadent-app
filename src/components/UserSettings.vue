@@ -71,9 +71,11 @@ function saveSettings() {
         </label>
       </div>
 
-      <div class="border-t pt-4">
+      <div>
         <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <input type="checkbox" v-model="enableAIAutoGen" />
+          <input
+          type="checkbox" class="w-4 h-4"
+          v-model="enableAIAutoGen" />
           Enable AI to automatically generate descriptions
         </label>
       </div>
