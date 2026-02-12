@@ -33,6 +33,7 @@ function saveSettings() {
   userStore.settings.metaDir = metaDir.value
   userStore.settings.enableAIAutoGen = enableAIAutoGen.value
   userStore.settings.aiBackendUrl = aiBackendUrl.value
+  userStore.settings.loadNextGoToUnlabeled = loadNextGoToUnlabeled.value;
   showWindow.value = false
 }
 </script>
