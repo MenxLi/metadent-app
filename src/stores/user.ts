@@ -10,6 +10,7 @@ interface UserSettings {
   loadNextGoToUnlabeled: boolean;
   enableAIAutoGen: boolean;
   aiBackendUrl: string;
+  aiBackendToken: string;
 }
 
 export const useUserStore = defineStore('UserInfo', () => {
@@ -26,6 +27,7 @@ export const useUserStore = defineStore('UserInfo', () => {
       loadNextGoToUnlabeled: true,
       enableAIAutoGen: true,
       aiBackendUrl: "",
+      aiBackendToken: "",
     }
   }
 

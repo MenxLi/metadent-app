@@ -90,6 +90,15 @@ async function handleLogin() {
             class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
+        <div v-if="settings.enableAIAutoGen" class="mb-4">
+          <p class="text-gray-700 font-medium mb-2">AI backend endpoint</p>
+          <input
+            type="text"
+            v-model="settings.aiBackendToken"
+            placeholder="Enter token"
+            class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
         <button
           type="submit"
           :disabled="loading"

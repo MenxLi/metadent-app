@@ -21,6 +21,7 @@ const metaDir = ref(userStore.settings.metaDir)
 const loadNextGoToUnlabeled = ref(userStore.settings.loadNextGoToUnlabeled)
 const enableAIAutoGen = ref(userStore.settings.enableAIAutoGen)
 const aiBackendUrl = ref(userStore.settings.aiBackendUrl)
+const aiBackendToken = ref(userStore.settings.aiBackendToken)
 
 function saveSettings() {
   if (enableAIAutoGen.value && !aiBackendUrl.value.trim()) {
@@ -33,6 +34,7 @@ function saveSettings() {
   userStore.settings.metaDir = metaDir.value
   userStore.settings.enableAIAutoGen = enableAIAutoGen.value
   userStore.settings.aiBackendUrl = aiBackendUrl.value
+  userStore.settings.aiBackendToken = aiBackendToken.value
   userStore.settings.loadNextGoToUnlabeled = loadNextGoToUnlabeled.value;
   showWindow.value = false
 }
@@ -88,6 +90,18 @@ function saveSettings() {
           v-model="aiBackendUrl"
           type="text"
           placeholder="http://xxx.xx.xx.xx:xxxx/infer"
+          class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm
+                 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div v-if="enableAIAutoGen" class="flex flex-col">
+        <label class="text-sm font-medium text-gray-700">
+          AI Backend Token
+        </label>
+        <input
+          v-model="aiBackendToken"
+          type="text"
+          placeholder="Enter token"
           class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm
                  focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
