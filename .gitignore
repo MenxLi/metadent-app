@@ -37,6 +37,8 @@ coverage
 # Vitepress
 doc/.vitepress/dist
 doc/.vitepress/cache
+.vitepress/dist
+.vitepress/cache
 
 # Temporary files
 metadent-app
