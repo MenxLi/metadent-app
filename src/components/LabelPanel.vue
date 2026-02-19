@@ -162,15 +162,46 @@
         event.preventDefault(); await skipAndNext();
       }
     };
+    const tabHandler = async (event: KeyboardEvent) => {
+      // Tab to create new label item if no label items exist
+      // If label item is active and it's input is not selected, select the input.
+      if (event.key === 'Tab') {
+        if (dataStore.activeDataLabel?.items.length === 0) {
+          event.preventDefault();
+          newLabelItem();
+          return;
+        }
+
+        const isFocusedOnActiveLabelInput = (() => {
+          const activeElement = document.activeElement as HTMLElement;
+          if (activeElement.tagName.toLowerCase() === 'input') {
+            const parent = activeElement.closest('#label-item-' + activeLabel.value);
+            if (parent) { return true; }
+          }
+          return false;
+        })();
+
+        if (!isFocusedOnActiveLabelInput) {
+          // focus on the active label item input
+          console.log('Focusing on active label item input:', activeLabel.value);
+          event.preventDefault();
+          focusOnLabelItem(activeLabel.value);
+          return;
+        }
+
+      }
+    };
     onMounted(() => {
       window.addEventListener('keydown', saveHandler);
       window.addEventListener('keydown', saveAndNextHandler);
       window.addEventListener('keydown', skipHandler);
+      window.addEventListener('keydown', tabHandler);
     });
     onUnmounted(() => {
       window.removeEventListener('keydown', saveHandler);
       window.removeEventListener('keydown', saveAndNextHandler);
       window.removeEventListener('keydown', skipHandler);
+      window.removeEventListener('keydown', tabHandler);
     });
   }
 
@@ -228,9 +259,26 @@
       >
         <LabelItemInput
           v-model="dataStore.activeDataLabel.items[index]!"
-          :active-contour-id=activeLabel
-          @delete="dataStore.activeDataLabel.items.splice(index, 1)"
+          :active-contour-id="activeLabel"
+          @delete="(id: string) => {
+            const itemIndex = dataStore.activeDataLabel!.items.findIndex(item => item.id === id);
+            if (itemIndex !== -1) {
+              dataStore.activeDataLabel!.items.splice(itemIndex, 1);
+            }
+            // focus on the next item if exists, otherwise focus on the previous item
+            if (dataStore.activeDataLabel!.items.length > 0) {
+              const nextIndex = itemIndex < dataStore.activeDataLabel!.items.length ? itemIndex : itemIndex - 1;
+              activeLabel = dataStore.activeDataLabel!.items[nextIndex]!.id;
+              focusOnLabelItem(activeLabel);
+            }
+          }"
           @select="(id) => activeLabel = id"
+          @select-previous="() => {
+            if (index - 1 >= 0) {
+              activeLabel = dataStore.activeDataLabel!.items[index - 1]!.id;
+              focusOnLabelItem(activeLabel);
+            }
+          }"
           @select-next="() => {
             if (index + 1 < dataStore.activeDataLabel!.items.length) {
               activeLabel = dataStore.activeDataLabel!.items[index + 1]!.id;
