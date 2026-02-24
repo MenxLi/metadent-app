@@ -1,5 +1,5 @@
-import Connector from './lfss';
-import type { Config } from './lfss';
+import Connector from '@/lfss';
+import type { Config } from '@/lfss';
 import { useUserStore } from '@/stores/user'
 
 export interface UserInfo {
@@ -97,6 +97,10 @@ export class BackendCalls {
       console.error('Error verifying user:', error);
       return null;
     }
+  }
+
+  async version(): Promise<string> {
+    return await this.connector.version();
   }
 
   async countData(): Promise<number> {

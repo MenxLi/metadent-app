@@ -18,7 +18,8 @@ export default defineConfig({
         items: [
           { text: 'Setup Backend', link: '/setup-backend' },
           { text: 'App Usage', link: '/app-usage' },
-          { text: 'Build from Source', link: '/setup-build' }
+          { text: 'Auxillary AI Service', link: '/aux-backend' },
+          { text: 'Build Frontend from Source', link: '/setup-build' },
         ]
       }
     ],

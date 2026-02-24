@@ -3,6 +3,22 @@ import { defineStore } from 'pinia'
 import { BackendCalls } from '@/api'
 import { useRouter } from 'vue-router'
 import { type UserInfo } from '@/api'
+import { useUiStateStore } from './uistate'
+
+function parseVersion(version: string): [number, number, number] {
+  const clean = version.trim().replace(/^v/i, '').split('-')[0] ?? '';
+  const parts = clean.split('.').map((v) => Number.parseInt(v, 10));
+  return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
+}
+
+function isVersionLessThan(current: string, minimum: string): boolean {
+  const [curMajor, curMinor, curPatch] = parseVersion(current);
+  const [minMajor, minMinor, minPatch] = parseVersion(minimum);
+  console.log(`Comparing versions: current=${current} (parsed: ${curMajor}.${curMinor}.${curPatch}), minimum=${minimum} (parsed: ${minMajor}.${minMinor}.${minPatch})`);
+  if (curMajor !== minMajor) return curMajor < minMajor;
+  if (curMinor !== minMinor) return curMinor < minMinor;
+  return curPatch < minPatch;
+}
 
 interface UserSettings {
   imageDir: string;
@@ -14,6 +30,7 @@ interface UserSettings {
 }
 
 export const useUserStore = defineStore('UserInfo', () => {
+  const MIN_SUPPORTED_BACKEND_VERSION = '0.7.0';
   const backendUrl = ref("http://localhost:8000");
   const hashkey = ref("");
   const backend = new BackendCalls();
@@ -50,6 +67,21 @@ export const useUserStore = defineStore('UserInfo', () => {
     );
   }
 
+  async function warnIfBackendVersionTooLow() {
+    const uiStateStore = useUiStateStore();
+    try {
+      const backendVersion = await backend.version();
+      if (isVersionLessThan(backendVersion, MIN_SUPPORTED_BACKEND_VERSION)) {
+        uiStateStore.msg.set(
+          `LFSS backend version ${backendVersion} is below the minimum supported version ${MIN_SUPPORTED_BACKEND_VERSION}. Some features may not work correctly.`,
+          'warning'
+        );
+      }
+    } catch (error) {
+      console.warn('Failed to check LFSS backend version:', error);
+    }
+  }
+
   async function login(): Promise<UserInfo | null> {
 
     backend.configureLFSS({
@@ -63,6 +95,7 @@ export const useUserStore = defineStore('UserInfo', () => {
     const userInfo = await backend.auth();
     if (userInfo) {
       user.value = userInfo;
+      await warnIfBackendVersionTooLow();
     }
     else {
       user.value = null;

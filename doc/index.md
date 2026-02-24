@@ -5,14 +5,14 @@ layout: home
 hero:
   name: "MetaDent App"
   text: "Image annotation app"
-  tagline:  "For semi-structured vision-language labeling of intra-oral images."
+  tagline: "For semi-structured vision-language labeling."
   actions:
     - theme: brand
       text: Get Started
       link: /quick-start
-    - theme: alt
-      text: About
-      link: /api-examples
+    # - theme: alt
+    # text: About
+    # link: /about
 
 # features:
 #   - title: Feature A
@@ -22,4 +22,3 @@ hero:
 #   - title: Feature C
 #     details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
 ---
-
