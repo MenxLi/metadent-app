@@ -113,17 +113,6 @@ export class BackendCalls {
     return fmetaDir;
   }
 
-  // avoid caching
-  _mangling(path: string): string {
-    const timestamp = new Date().getTime();
-    if (path.includes("?")) {
-      return path + "&t=" + timestamp;
-    }
-    else {
-      return path + "?t=" + timestamp;
-    }
-  }
-
   async isInfoAvailable(fileName: string): Promise<boolean> {
     const metaDir = this._getDataMetaDir(fileName);
     if (!await this.connector.exists(metaDir + 'info.json')) {
@@ -176,7 +165,7 @@ export class BackendCalls {
         crop: null, // no crop by default
       }
     }
-    const label = await this.connector.getJson(this._mangling(labelFile)) as DataLabel;
+    const label = await this.connector.getJson(labelFile) as DataLabel;
     // backward compatibility
     if (label.crop === undefined) { label.crop = null; }
     return label;
