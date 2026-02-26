@@ -80,7 +80,11 @@ The info files should be JSON files containing metadata about each image. Essent
 - The name for each image file can be anything, as long as it is unique within the image directory. But please be sure the name of each metadata subdirectory (e.g., `image1`, `image2`) should match the corresponding image filename without the extension.  
   :::
 
-You can first create this structure locally and then upload it to the LFSS server using the LFSS CLI:
+You can first create this structure locally and then upload it to the LFSS server via the web panel.
+
+:::details You can also upload the files via command line
+
+You can use the LFSS CLI tool to upload your project directory to the server:
 
 ```sh
 # first setup LFSS CLI with your server info
@@ -88,8 +92,10 @@ export LFSS_ENDPOINT=http://localhost:8000
 export LFSS_TOKEN=<your-generated-token>
 
 # then upload your project directory, using -j for parallel uploads
-lfss up local/project/path/ <username>/your-project/ -j 4
+lfss up local/project/path/ <username>/<your-project>/ -j 4
 ```
+
+:::
 
 Now we've completed the backend setup for the MetaDent App! You can now configure the app to connect to your LFSS server and start labeling images. 🙌
 

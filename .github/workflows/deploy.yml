@@ -1,10 +1,10 @@
-name: Deploy VitePress site to GitHub Pages
+name: Deploy site to GitHub Pages
 
 on:
   push:
     branches:
-      - main  # or 'master' if you use that
-  workflow_dispatch:  # allows manual trigger
+      - main
+  workflow_dispatch: # allows manual trigger
 
 permissions:
   contents: read
@@ -49,4 +49,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
