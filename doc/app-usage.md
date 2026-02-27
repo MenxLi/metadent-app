@@ -6,7 +6,7 @@ This section provides a brief guide on using the MetaDent App frontend.
 At the login screen, enter the URL of your LFSS server along with your access token. 
 If the connection is successful, you will be redirected to the main labeling interface.  
 ![login-screen](https://metadent.limengxun.com:8000/doc/images/login.jpg)
-If you are tesingting locally, the URL should be something like `http://localhost:8000`.
+If you are testing locally, the URL should be something like `http://localhost:8000`.
 
 At first the labeling interface may appear empty. This is because we have not yet configured the data path for the app.
 To configure the data path, click on the settings button at the top right corner of the screen.  
