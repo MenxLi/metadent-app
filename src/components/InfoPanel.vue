@@ -18,17 +18,18 @@ const onInfoMessageClick = (event: MouseEvent) => {
   }
 
   const action = actionElement.dataset.uiAction;
+  if (action === 'close-message') {
+    event.preventDefault();
+    uiStateStore.msg.reset();
+    return;
+  }
+
   if (action === 'disable-ai-autogen') {
     event.preventDefault();
     userStore.disableAIAutoGen();
     uiStateStore.msg.set('AI auto-generation has been disabled. You can re-enable it in User Settings.', 'info');
   }
 }
-
-// const formatFileSize = (bytes: number) =>
-//   bytes > 1024 * 1024
-//     ? `${(bytes / 1024 / 1024).toFixed(2)} MB`
-//     : `${(bytes / 1024).toFixed(2)} KB`
 </script>
 
 <template>
@@ -42,7 +43,17 @@ const onInfoMessageClick = (event: MouseEvent) => {
     v-if="uiStateStore.msg.content"
     @click="onInfoMessageClick"
   >
-      <div v-html="uiStateStore.msg.content"></div>
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex-1" v-html="uiStateStore.msg.content"></div>
+      <button
+        type="button"
+        data-ui-action="close-message"
+        class="shrink-0 text-inherit opacity-70 hover:opacity-100 font-semibold leading-none"
+        aria-label="Close message"
+      >
+        ×
+      </button>
+    </div>
   </div>
   <div v-if="dataInfo" class="flex items-center justify-between bg-white shadow-md p-4 rounded-lg">
     <div class="bg-transparent p-2 rounded text-gray-700 text-xs grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
