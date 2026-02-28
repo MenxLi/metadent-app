@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import FloatingWindow from './containers/FloatingWindow.vue'
 import { useUserStore } from '@/stores/user'
+import { useDataStore } from '@/stores/data';
 
 const props = defineProps<{
   show: boolean
@@ -40,6 +41,11 @@ function saveSettings() {
     return
   }
 
+  let needFullReset = false;
+  if (userStore.settings.imageDir !== imageDir.value || userStore.settings.metaDir !== metaDir.value) {
+    needFullReset = true;
+  }
+
   userStore.settings.imageDir = imageDir.value
   userStore.settings.metaDir = metaDir.value
   userStore.settings.enableAIAutoGen = enableAIAutoGen.value
@@ -47,6 +53,16 @@ function saveSettings() {
   userStore.settings.aiBackendToken = aiBackendToken.value
   userStore.settings.loadNextGoToUnlabeled = loadNextGoToUnlabeled.value;
   showWindow.value = false
+
+  if (needFullReset) {
+    const dataStore = useDataStore();
+    userStore.backend.configurePath({
+      imageDir: userStore.settings.imageDir,
+      metaDir: userStore.settings.metaDir
+    });
+    dataStore.resetActiveData();
+    dataStore.updateIndex();
+  }
 }
 </script>
 

@@ -1,4 +1,4 @@
-import { ref, type Ref, watch } from 'vue'
+import { ref, type Ref } from 'vue'
 import { defineStore } from 'pinia'
 import { type DataItem, type DataInfo, type LockStatus, type DataLabel, FileLabelStatus} from '@/api'
 import { useUserStore } from './user'
@@ -28,7 +28,7 @@ export const useDataStore = defineStore('dataStore', () => {
       return;
     }
     if (pageIdx != uiStateStore.pageIndex) {
-      uiStateStore.pageIndex = pageIdx;
+      uiStateStore.setPageIndex(pageIdx);
       await updateIndex();
     }
     const localIdx = idx % uiStateStore.PAGE_SIZE;
@@ -41,11 +41,15 @@ export const useDataStore = defineStore('dataStore', () => {
   }
 
   async function updateIndex() {
-    useUiStateStore().pageIndexLoading = true;
+    uiStateStore.pageIndexLoading = true;
     try {
       const backend = userStore.backend;
       const nData = await backend.countData();
       uiStateStore.pageMax = Math.ceil(nData / uiStateStore.PAGE_SIZE);
+
+      if (uiStateStore.pageIndex >= uiStateStore.pageMax) {
+        uiStateStore.setPageIndex(uiStateStore.pageMax - 1);
+      }
 
       const dataList = await backend.listData(
         uiStateStore.pageIndex * uiStateStore.PAGE_SIZE,
@@ -56,7 +60,7 @@ export const useDataStore = defineStore('dataStore', () => {
     }
     catch (e) { throw e; }
     finally {
-      useUiStateStore().pageIndexLoading = false;
+      uiStateStore.pageIndexLoading = false;
     }
   }
 
@@ -240,7 +244,7 @@ export const useDataStore = defineStore('dataStore', () => {
     }
   }
 
-  watch(() => uiStateStore.pageIndex, updateIndex)
+  // watch(() => uiStateStore.pageIndex, updateIndex)
   return {
     dataItems, activeDataInfo, activeDataItem, activeDataLabel, activeDataLock,
     updateIndex,

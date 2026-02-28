@@ -27,6 +27,7 @@ export const useUiStateStore = defineStore('uiState', () => {
   const labelPanelLoading: Ref<boolean> = ref(false);
   const msg: Ref<UiMessage> = ref(new UiMessage(""));
 
+  // handler to set page index with boundary checks
   const setPageIndex = (index: number) => {
     if (index < 0) {
       pageIndex.value = 0;

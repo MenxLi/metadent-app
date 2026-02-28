@@ -16,7 +16,6 @@ At first the labeling interface may appear empty. This is because we have not ye
 To configure the data path, click on the settings button at the top right corner of the screen.  
 ![configure-path](https://metadent.limengxun.com:8000/doc/images/configure-path.jpg)
 
-- <b style="color!: var(--vp-c-text)">You need to refresh the page after changing the path settings to take effect</b>.
 - More about the path settings can be found in the [Backend configuration](setup-backend.md#prepare-files-for-labeling) section.
 
 ## Label Images

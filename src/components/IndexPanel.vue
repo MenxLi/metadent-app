@@ -2,6 +2,7 @@
   import DataCard from './DataCard.vue';
   import { useDataStore } from '@/stores/data';
   import { useUiStateStore } from '@/stores/uistate';
+  import { computed } from 'vue';
   const dataStore = useDataStore();
   const uiStateStore = useUiStateStore();
 
@@ -19,6 +20,11 @@
       dataStore.updateIndex();
     }
   }
+
+const pageIdxPlusOne = computed({
+  get: () => uiStateStore.pageIndex + 1,
+  set: (val: number) => { uiStateStore.setPageIndex(val - 1); }
+})
 </script>
 
 <template>
@@ -40,7 +46,7 @@
       <span
         class="text-blue-700 text-lg font-semibold outline-none border border-transparent focus:border-blue-400 px-2 rounded _no-newline"
       >
-        Page <input type="number" v-model="uiStateStore.pageIndex" class="w-12 text-center border-b border-blue-500 focus:outline-none" />/{{ uiStateStore.pageMax }}
+        Page <input type="number" v-model="pageIdxPlusOne" class="w-12 text-center border-b border-blue-500 focus:outline-none" />/{{ uiStateStore.pageMax }}
       </span>
 
       <button
