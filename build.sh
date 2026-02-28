@@ -1,4 +1,5 @@
-npm run build \
+npm i \
+&& npm run build \
 && npm run docs:build \
 && mkdir -p dist/docs \
 && cp -r doc/.vitepress/dist/* dist/docs/;

@@ -16,6 +16,7 @@ export default defineConfig({
       {
         text: 'Setup',
         items: [
+          { text: 'Quick Start', link: '/quick-start' },
           { text: 'Setup Backend', link: '/setup-backend' },
           { text: 'App Usage', link: '/app-usage' },
           { text: 'Auxillary AI Service', link: '/aux-backend' },

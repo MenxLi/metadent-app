@@ -1,6 +1,9 @@
 # App Usage Guide
 
 This section provides a brief guide on using the MetaDent App frontend.
+The frontend is designed to be intuitive and user-friendly,
+this page only provide key instructions and tips, and skim through of the main features to help you get started quickly.
+Feel free to explore the app on your own.
 
 ## Connect to a Backend
 

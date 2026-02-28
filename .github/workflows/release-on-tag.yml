@@ -1,0 +1,41 @@
+name: Release on Tag
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build distribution
+        run: |
+          chmod +x ./build.sh
+          ./build.sh
+
+      - name: Package release artifact
+        run: |
+          tar -czf metadent-app-${{ github.ref_name }}.tar.gz metadent-app
+
+      - name: Create GitHub Release and upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: metadent-app-${{ github.ref_name }}.tar.gz
+          generate_release_notes: true
