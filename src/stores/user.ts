@@ -29,8 +29,8 @@ interface UserSettings {
   aiBackendToken: string;
 }
 
+const MIN_SUPPORTED_BACKEND_VERSION = '0.18.0';
 export const useUserStore = defineStore('UserInfo', () => {
-  const MIN_SUPPORTED_BACKEND_VERSION = '0.7.0';
   const backendUrl = ref("http://localhost:8000");
   const hashkey = ref("");
   const backend = new BackendCalls();
