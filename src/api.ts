@@ -306,7 +306,7 @@ export class BackendCalls {
   async getDataInfo(fileName: string): Promise<DataInfo> {
     const ret = await this.connector.getJson(this._getDataMetaDir(fileName) + "info.json");
     const validateDataInfo = (data: DataInfo): boolean => {
-      return ['file_name', 'path', 'source', 'height', 'width', 'id'].every(prop => prop in data);
+      return ['file_name', 'source', 'height', 'width'].every(prop => prop in data);
     }
     if (!validateDataInfo(ret as DataInfo)) {
       throw new Error("Invalid data info format for " + fileName);
