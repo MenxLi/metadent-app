@@ -1,6 +1,7 @@
 import Connector from '@/lfss';
 import type { Config } from '@/lfss';
 import { useUserStore } from '@/stores/user'
+import { useUiStateStore } from './stores/uistate';
 
 export interface UserInfo {
   username: string,
@@ -451,18 +452,24 @@ export class AIBackendCalls {
       return data;
     } catch (err) {
       console.error('AI backend call failed:', err)
-      userStore.disableAIAutoGen()
+      useUiStateStore().msg.set(
+        'AI backend call failed: ' + `<span style="color: red;">${err instanceof Error ? err.message : String(err)}</span>` +
+        ". <br>Please check the backend URL and token configuration, or check the backend server status. " +
+        "[<a href=\"#\" data-ui-action=\"disable-ai-autogen\">disable AI auto-generation</a>]",
+        'warning'
+      );
+
       throw err
     }
   }
 
-  public async overallDescription(idx: string): Promise<string> {
-    const response = await this.fetch('overall-description', { idx });
+  public async overallDescription(image_id: string): Promise<string> {
+    const response = await this.fetch('overall-description', { image_id });
     return response.output || "";
   }
 
-  public async regionDescription(idx: string, contours: [number, number][][]): Promise<string> {
-    const response = await this.fetch('region-description', { idx, contours });
+  public async regionDescription(image_id: string, contours: [number, number][][]): Promise<string> {
+    const response = await this.fetch('region-description', { image_id, contours });
     return response.output || "";
   }
 

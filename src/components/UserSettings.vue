@@ -22,6 +22,16 @@ const loadNextGoToUnlabeled = ref(userStore.settings.loadNextGoToUnlabeled)
 const enableAIAutoGen = ref(userStore.settings.enableAIAutoGen)
 const aiBackendUrl = ref(userStore.settings.aiBackendUrl)
 const aiBackendToken = ref(userStore.settings.aiBackendToken)
+watch(showWindow, () => {
+    // sync with settings when opened
+    // or reset to current settings when window is closed without saving
+    imageDir.value = userStore.settings.imageDir
+    metaDir.value = userStore.settings.metaDir
+    loadNextGoToUnlabeled.value = userStore.settings.loadNextGoToUnlabeled
+    enableAIAutoGen.value = userStore.settings.enableAIAutoGen
+    aiBackendUrl.value = userStore.settings.aiBackendUrl
+    aiBackendToken.value = userStore.settings.aiBackendToken
+})
 
 function saveSettings() {
   if (enableAIAutoGen.value && !aiBackendUrl.value.trim()) {

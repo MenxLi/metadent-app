@@ -293,11 +293,11 @@ async function autoGenerateRegionDescription(label: LabelItem) {
   const fileName = dataStore.activeDataItem?.fileName;
   if (!fileName) return;
 
-  const idx = fileName.replace(/\.[^/.]+$/, '');
+  const image_id = fileName.replace(/\.[^/.]+$/, '');
 
   try {
     const res = await new AIBackendCalls().regionDescription(
-      idx, label.contours,
+      image_id, label.contours,
     );
     console.log('Auto-complete response:', res)
 
@@ -315,7 +315,6 @@ async function autoGenerateRegionDescription(label: LabelItem) {
     emit('update:labels', finalLabels);
   } catch (error) {
     console.error('Error fetching auto-complete:', error)
-    alert('Error fetching auto-complete: ' + error)
   }
 }
 </script>

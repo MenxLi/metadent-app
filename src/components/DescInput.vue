@@ -79,11 +79,11 @@ async function autoGenerateOverallDescription() {
   const fileName = dataStore.activeDataItem?.fileName;
   if (!fileName) return;
 
-  const idx = fileName.replace(/\.[^/.]+$/, '');
+  const image_id = fileName.replace(/\.[^/.]+$/, '');
 
   fetching.value = true
   try {
-    const res = await new AIBackendCalls().overallDescription(idx);
+    const res = await new AIBackendCalls().overallDescription(image_id);
     if (res) {
       const description = res;
       console.log('Auto-complete response:', res)
@@ -91,7 +91,6 @@ async function autoGenerateOverallDescription() {
     }
   } catch (error) {
     console.error('Error fetching auto-complete:', error)
-    alert('Error fetching auto-complete: ' + error)
   } finally {
     fetching.value = false
   }

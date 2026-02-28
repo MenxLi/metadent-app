@@ -10,6 +10,21 @@ const uiStateStore = useUiStateStore()
 const dataInfo = computed(() => dataStore.activeDataInfo)
 const annotators = computed(() => dataStore.activeDataLabel?.annotators)
 
+const onInfoMessageClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement | null;
+  const actionElement = target?.closest('[data-ui-action]') as HTMLElement | null;
+  if (!actionElement) {
+    return;
+  }
+
+  const action = actionElement.dataset.uiAction;
+  if (action === 'disable-ai-autogen') {
+    event.preventDefault();
+    userStore.disableAIAutoGen();
+    uiStateStore.msg.set('AI auto-generation has been disabled. You can re-enable it in User Settings.', 'info');
+  }
+}
+
 // const formatFileSize = (bytes: number) =>
 //   bytes > 1024 * 1024
 //     ? `${(bytes / 1024 / 1024).toFixed(2)} MB`
@@ -25,6 +40,7 @@ const annotators = computed(() => dataStore.activeDataLabel?.annotators)
       'bg-red-100 text-red-800': uiStateStore.msg.level === 'error',
     }"
     v-if="uiStateStore.msg.content"
+    @click="onInfoMessageClick"
   >
       <div v-html="uiStateStore.msg.content"></div>
   </div>

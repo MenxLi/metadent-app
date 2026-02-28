@@ -24,9 +24,7 @@ Instead, we provide a clear API specification and design principles for you to d
 
 ## Design Principles
 
-- The frontend does **NOT** transmit image data.
-- Only the **image ID (`idx`)** is transmitted.
-- The AI backend must retrieve image data from its own database or storage system.
+- The frontend does **NOT** transmit image data, only the **image ID** is transmitted.
 - All endpoints use HTTP `POST` method and exchange data in body as JSON format.
 
 ## Authentication
@@ -51,24 +49,29 @@ Used to generate a global description of the entire image.
 
 #### Request Body
 
+- `image_id`: The unique identifier of the image for which to generate the description.
+
+Example:
+
 ```json
 {
-  "idx": "image_id"
+  "image_id": "00032"
 }
 ```
 
 #### Response Body
 
+- `image_id`: The unique identifier of the image, just echo back from the request.
+- `output`: The generated description for the image. If generation fails, this can be null
+
+Example:
+
 ```json
 {
-  "idx": "image_id",
-  "output": "The generated description (or null if generation fails)"
+  "idx": "00032",
+  "output": "This image shows a patient with multiple dental caries, particularly on the molars. The overall oral hygiene appears poor, with visible plaque accumulation and gingival inflammation."
 }
 ```
-
-#### Description
-
-- `idx`: The unique identifier of the image.
 
 ### Region Description
 
@@ -80,12 +83,18 @@ Used to generate a description of a user-selected polygon region.
 
 #### Request Body
 
+- `image_id`: The unique identifier of the image.
+- `contours`: The polygon coordinates drawn by the user on the frontend. Format: `[[[x1, y1], [x2, y2], ...]]`.
+  This represents one or multiple polygons.
+  The coordinates are normalized to [0, 1] range with respect to the image width and height.
+  In the format of (x, y), where x is the horizontal coordinate (starting from the left) and y is the vertical coordinate (starting from the top).
+
 ```json
 {
-  "idx": "image_id",
+  "image_id": "00032",
   "contours": [
-    [[x1, y1], [x2, y2], ...],
-    [[x3, y3], [x4, y4], ...],
+    [[0.1, 0.2], [0.15, 0.25], [0.1, 0.3], ...],
+    [[0.5, 0.5], [0.55, 0.55], [0.5, 0.6], ...]
     ...
   ]
 }
@@ -93,25 +102,15 @@ Used to generate a description of a user-selected polygon region.
 
 #### Response Body
 
+- `image_id`: The unique identifier of the image, just echo back from the request.
+- `output`: The generated description for the specified region. If generation fails, this can be null.
+
 ```json
 {
-  "idx": "image_id",
-  "output": "The generated description (or null if generation fails)"
+  "image_id": "00032",
+  "output": "#46 haves a large caries lesion on the occlusal surface."
 }
 ```
-
-#### Description
-
-- `idx`: Image ID.
-- `contours`: Polygon coordinates drawn by the user.
-  - Format: `[[[x1, y1], [x2, y2], ...]]`
-  - Represents one or multiple polygons.
-
-The backend must:
-
-- Load the image using `idx`
-- Use the provided coordinates to extract the corresponding region
-- Generate region-specific descriptions
 
 ## Frontend Behavior and Error Handling
 
@@ -121,7 +120,7 @@ the frontend will:
 1. Call the above overall description endpoint when the user clicks the AI generation button at the overall description area.
 2. In addition, when user draws a polygon region, the frontend will automatically call the region description endpoint to generate a description for the drawn region.
 
-The frontend will automatically disable AI auto-generation if:
+<!-- The frontend will automatically disable AI auto-generation if:
 
 - Backend URL is missing
 - HTTP request fails
@@ -131,7 +130,7 @@ If AI fails, the user is automatically switched to manual input mode.
 Your backend should:
 
 - Return JSON responses or return errors with proper status codes
-- Avoid long blocking operations without timeouts
+- Avoid long blocking operations without timeouts -->
 
 <style scoped>
   h3 {
