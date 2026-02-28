@@ -23,8 +23,8 @@ hero:
 #     details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
 ---
 
-The community lacks free open-source tools for labeling images with semi-structured data,
-which are essential for training/evaluating vision-language models (for dentistry in our case :)).
+The community lacks free open-source tools for labeling images with multi-modal annotations (e.g., free-text labels + segmentation masks)
+which are essential for training/evaluating vision-language models.
 
 This app provides a simple interface for annotating images with:
 
@@ -37,8 +37,6 @@ It also supports plugin-server, allowing integration with external models for au
 
 MetaDent is a intra-oral image dataset, benchmark, and an annotation app for vision-language tasks in dentistry.
 This application is part of the MetaDent project.
-
-If you use this work, please kindly cite our paper:
 
 > **MetaDent: Labeling Clinical Images for Vision-Language Models in Dentistry**  
 > _Meng-Xun Li†, Wen-Hui Deng†, Zhi-Xing Wu, Chun-Xiao Jin, Jia-Min Wu, Yue Han, James Kit Hon Tsoi, Gui-Song Xia*, Cui Huang*_  

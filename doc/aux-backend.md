@@ -1,5 +1,5 @@
 ---
-outline: [3]
+outline: [2, 3]
 ---
 
 # Auxiliary AI Service Guide
@@ -12,13 +12,22 @@ The MetaDent App supports optional integration with an Auxiliary AI Service for 
 
 This AI-assisted labeling feature is fully optional. If enabled, the frontend will send structured requests to a user-provided backend service. If disabled or misconfigured, the application will automatically fall back to manual labeling.
 
+:::info
+We do not provide a ready-to-use AI backend service, as:
+
+1. The implementation can vary greatly depending on your specific use case and the models you want to use.
+2. Our model is not ready for public release yet. We may open-source it in the future after further development and testing.
+
+Instead, we provide a clear API specification and design principles for you to develop your own custom AI service that best fits your needs.
+
+:::
+
 ## Design Principles
 
 - The frontend does **NOT** transmit image data.
 - Only the **image ID (`idx`)** is transmitted.
 - The AI backend must retrieve image data from its own database or storage system.
-
-This design minimizes bandwidth usage and improves security and scalability.
+- All endpoints use HTTP `POST` method and exchange data in body as JSON format.
 
 ## Authentication
 
@@ -106,11 +115,16 @@ The backend must:
 
 ## Frontend Behavior and Error Handling
 
-The frontend:
+If the AI backend is properly configured,
+the frontend will:
 
-- Automatically disables AI auto-generation if:
-  - Backend URL is missing
-  - HTTP request fails
+1. Call the above overall description endpoint when the user clicks the AI generation button at the overall description area.
+2. In addition, when user draws a polygon region, the frontend will automatically call the region description endpoint to generate a description for the drawn region.
+
+The frontend will automatically disable AI auto-generation if:
+
+- Backend URL is missing
+- HTTP request fails
 
 If AI fails, the user is automatically switched to manual input mode.
 
@@ -121,6 +135,6 @@ Your backend should:
 
 <style scoped>
   h3 {
-    color: #1E40AF;
+    color: var(--vp-c-brand);
   }
 </style>
