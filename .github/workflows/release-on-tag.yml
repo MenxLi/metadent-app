@@ -38,4 +38,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: metadent-app-${{ github.ref_name }}.tar.gz
-          generate_release_notes: true
+          generate_release_notes: false
