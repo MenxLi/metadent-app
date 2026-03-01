@@ -43,7 +43,7 @@ This application is part of the MetaDent project.
 > Journal of Dental Research, 2026.  
 > [[Paper Link](#)] [[Project Page](https://menxli.github.io/metadent/)]
 
-```bibtex
+<!-- ```bibtex
 @article{metadent_jdr_2026,
   title={MetaDent: Labeling Clinical Images for Vision-Language Models in Dentistry},
   author={Meng-Xun Li and Wen-Hui Deng and Zhi-Xing Wu and Chun-Xiao Jin and Jia-Min Wu and Yue Han and James Kit Hon Tsoi and Gui-Song Xia and Cui Huang},
@@ -52,4 +52,4 @@ This application is part of the MetaDent project.
   doi={10.1177/00220345261424242},
   year={2026}
 }
-```
+``` -->

@@ -23,6 +23,7 @@ const loadNextGoToUnlabeled = ref(userStore.settings.loadNextGoToUnlabeled)
 const enableAIAutoGen = ref(userStore.settings.enableAIAutoGen)
 const aiBackendUrl = ref(userStore.settings.aiBackendUrl)
 const aiBackendToken = ref(userStore.settings.aiBackendToken)
+const aiFeatureSet = ref({ ...userStore.settings.aiFeatureSet })
 watch(showWindow, () => {
     // sync with settings when opened
     // or reset to current settings when window is closed without saving
@@ -32,6 +33,7 @@ watch(showWindow, () => {
     enableAIAutoGen.value = userStore.settings.enableAIAutoGen
     aiBackendUrl.value = userStore.settings.aiBackendUrl
     aiBackendToken.value = userStore.settings.aiBackendToken
+    aiFeatureSet.value = { ...userStore.settings.aiFeatureSet }
 })
 
 function saveSettings() {
@@ -52,6 +54,7 @@ function saveSettings() {
   userStore.settings.aiBackendUrl = aiBackendUrl.value
   userStore.settings.aiBackendToken = aiBackendToken.value
   userStore.settings.loadNextGoToUnlabeled = loadNextGoToUnlabeled.value;
+  userStore.settings.aiFeatureSet = { ...aiFeatureSet.value }
   showWindow.value = false
 
   if (needFullReset) {
@@ -104,33 +107,54 @@ function saveSettings() {
           <input
           type="checkbox" class="w-4 h-4"
           v-model="enableAIAutoGen" />
-          Enable AI to automatically generate descriptions
+          Enable AI assisted labeling (experimental)
         </label>
       </div>
 
-      <div v-if="enableAIAutoGen" class="flex flex-col">
-        <label class="text-sm font-medium text-gray-700">
-          AI Backend Endpoint
-        </label>
-        <input
-          v-model="aiBackendUrl"
-          type="text"
-          placeholder="https://xxx.com:xxxxx"
-          class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm
-                 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-      <div v-if="enableAIAutoGen" class="flex flex-col">
-        <label class="text-sm font-medium text-gray-700">
-          AI Backend Token
-        </label>
-        <input
-          v-model="aiBackendToken"
-          type="text"
-          placeholder="Enter token"
-          class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm
-                 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      <div v-if="enableAIAutoGen" class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-0.5">
+          <label class="text-sm font-medium text-gray-700">
+            AI Backend Endpoint
+          </label>
+          <input
+            v-model="aiBackendUrl"
+            type="text"
+            placeholder="https://xxx.com:xxxxx"
+            class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm
+                  focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <label class="text-sm font-medium text-gray-700">
+            AI Backend Token
+          </label>
+          <input
+            v-model="aiBackendToken"
+            type="text"
+            placeholder="Enter token"
+            class="mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm
+                  focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div class="flex flex-col gap-0.5 text-sm">
+          <label class="text-sm font-medium text-gray-700">
+            AI Features
+          </label>
+          <div class="flex flex-col gap-1 pl-4">
+            <label class="flex items-center gap-2 text-gray-700">
+              <input
+                type="checkbox" class="w-4 h-4"
+                v-model="aiFeatureSet.overallDescriptionOnLoad" />
+              Overall description on image load
+            </label>
+            <label class="flex items-center gap-2 text-gray-700">
+              <input
+                type="checkbox" class="w-4 h-4"
+                v-model="aiFeatureSet.regionDescriptionOnDraw" />
+              Region description on region draw
+            </label>
+          </div>
+        </div>
       </div>
 
       <div class="flex justify-end gap-2 pt-2">

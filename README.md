@@ -9,10 +9,12 @@ It also supports plugin-server, allowing integration with external models for au
 
 More can be found at the [documentation page](https://menxli.github.io/metadent-app/docs/).
 
-## Paper & Citation
+## About MetaDent
 
-MetaDent is a intra-oral image dataset, benchmark, and an annotation app for vision-language tasks in dentistry.
+MetaDent is an intra-oral image dataset, benchmark, and an annotation app for vision-language tasks in dentistry.
 This application is part of the MetaDent project.
+
+More details can be found in:
 
 > **MetaDent: Labeling Clinical Images for Vision-Language Models in Dentistry**  
 > _Meng-Xun Li†, Wen-Hui Deng†, Zhi-Xing Wu, Chun-Xiao Jin, Jia-Min Wu, Yue Han, James Kit Hon Tsoi, Gui-Song Xia*, Cui Huang*_  

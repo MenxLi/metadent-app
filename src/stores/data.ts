@@ -3,10 +3,12 @@ import { defineStore } from 'pinia'
 import { type DataItem, type DataInfo, type LockStatus, type DataLabel, FileLabelStatus} from '@/api'
 import { useUserStore } from './user'
 import { useUiStateStore } from './uistate'
+import { useComponentStore } from './component'
 
 export const useDataStore = defineStore('dataStore', () => {
   const userStore = useUserStore();
   const uiStateStore = useUiStateStore();
+  const componentStore = useComponentStore();
 
   const dataItems: Ref<DataItem[]> = ref([]);
   const activeDataItem: Ref<DataItem | null> = ref(null);
@@ -173,11 +175,22 @@ export const useDataStore = defineStore('dataStore', () => {
     activeDataLock.value = [lockAcquired, lock];
     if (lockAcquired) {
       console.debug("lock acquired", lock);
+      await _onActiveDataItemChange();
     }
     else {
       console.debug("lock not acquired, existing lock", lock);
     }
+
     return activeDataLock.value;
+  }
+
+  async function _onActiveDataItemChange() {
+    if (userStore.settings.aiFeatureSet.overallDescriptionOnLoad && !activeDataLabel.value?.overallDescription) {
+      console.debug("auto generating overall description!", componentStore.descInputExpose);
+      componentStore.descInputExpose?.autoGenerateOverallDescription().then(() => {
+        componentStore.descInputExpose?.focus();
+      })
+    }
   }
 
   async function saveCurrentLabel() {

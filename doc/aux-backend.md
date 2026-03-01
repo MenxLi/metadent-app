@@ -51,7 +51,7 @@ Used to generate a global description of the entire image.
 
 - `image_id`: The unique identifier of the image for which to generate the description.
 
-Example:
+<label class="example-label">Example</label>
 
 ```json
 {
@@ -64,7 +64,7 @@ Example:
 - `image_id`: The unique identifier of the image, just echo back from the request.
 - `output`: The generated description for the image. If generation fails, this can be null
 
-Example:
+<label class="example-label">Example</label>
 
 ```json
 {
@@ -89,6 +89,8 @@ Used to generate a description of a user-selected polygon region.
   The coordinates are normalized to [0, 1] range with respect to the image width and height.
   In the format of (x, y), where x is the horizontal coordinate (starting from the left) and y is the vertical coordinate (starting from the top).
 
+<label class="example-label">Example</label>
+
 ```json
 {
   "image_id": "00032",
@@ -105,6 +107,8 @@ Used to generate a description of a user-selected polygon region.
 - `image_id`: The unique identifier of the image, just echo back from the request.
 - `output`: The generated description for the specified region. If generation fails, this can be null.
 
+<label class="example-label">Example</label>
+
 ```json
 {
   "image_id": "00032",
@@ -114,26 +118,32 @@ Used to generate a description of a user-selected polygon region.
 
 ## Frontend Behavior and Error Handling
 
-If the AI backend is properly configured,
+AI features can be enabled as needed in the user settings:
+
+<img src="https://metadent.limengxun.com:8000/doc/images/configure-ai-features.png" alt="Configure AI Features" style="max-width: 300px; height: auto; border: 1px solid #ccc; border-radius: 4px; margin: 1em 0;">
+
+Click on 'Enable AI assisted labeling' to enable the AI features, and fill in the backend URL and token if you have one.
+
+At the bottom of the settings, you can toggle specific features on or off:
+The names are self-explanatory, if all of the AI backend is properly configured and enabled,
 the frontend will:
 
-1. Call the above overall description endpoint when the user clicks the AI generation button at the overall description area.
-2. In addition, when user draws a polygon region, the frontend will automatically call the region description endpoint to generate a description for the drawn region.
-
-<!-- The frontend will automatically disable AI auto-generation if:
-
-- Backend URL is missing
-- HTTP request fails
-
-If AI fails, the user is automatically switched to manual input mode.
-
-Your backend should:
-
-- Return JSON responses or return errors with proper status codes
-- Avoid long blocking operations without timeouts -->
+- Automatically request overall image description when a new image is loaded.
+- After the user finishes drawing a polygon, it will request the description for that region.
 
 <style scoped>
   h3 {
     color: var(--vp-c-brand);
+  }
+  .example-label {
+    display: inline-block;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 0.1em 0.5em;
+    background-color: #b5c6d044;
+    color: var(--vp-c-brand-2);
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: bold;
   }
 </style>

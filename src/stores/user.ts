@@ -20,6 +20,11 @@ function isVersionLessThan(current: string, minimum: string): boolean {
   return curPatch < minPatch;
 }
 
+interface UserSettingsAiFeatureSet {
+  overallDescriptionOnLoad: boolean;
+  regionDescriptionOnDraw: boolean;
+}
+
 interface UserSettings {
   imageDir: string;
   metaDir: string;
@@ -27,6 +32,7 @@ interface UserSettings {
   enableAIAutoGen: boolean;
   aiBackendUrl: string;
   aiBackendToken: string;
+  aiFeatureSet: UserSettingsAiFeatureSet;
 }
 
 const MIN_SUPPORTED_BACKEND_VERSION = '0.18.0';
@@ -45,6 +51,10 @@ export const useUserStore = defineStore('UserInfo', () => {
       enableAIAutoGen: true,
       aiBackendUrl: "",
       aiBackendToken: "",
+      aiFeatureSet: {
+        overallDescriptionOnLoad: true,
+        regionDescriptionOnDraw: true,
+      }
     }
   }
 

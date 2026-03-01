@@ -11,11 +11,12 @@
   const uiStateStore = useUiStateStore();
   const activeLabel = ref<string>("");
   const unsavedChanges = ref(false);
-  const descInput = ref<typeof DescInput | null>(null);
   const hideContours = ref(false);
   const loading = ref(false);
-  const imageContainer = ref<HTMLDivElement | null>(null);
   const imageMaxW = ref(800);
+
+  const imageContainer = ref<HTMLDivElement | null>(null);
+
   {
     function updateImageMaxW() {
       if (imageContainer.value) {
@@ -34,9 +35,6 @@
       nextTick(() => {
         if (newLabel) {
           activeLabel.value = newLabel.items[0]?.id || "";
-          if (descInput.value) {
-            descInput.value.focus();
-          }
         }
         unsavedChanges.value = false;
       });
@@ -243,7 +241,6 @@
     <DescInput
       v-if="dataStore.activeDataItem && dataStore.activeDataLabel"
       v-model="dataStore.activeDataLabel.overallDescription"
-      ref="descInput"
       @enter="if (dataStore.activeDataLabel!.items.length > 0) {
         const id = dataStore.activeDataLabel!.items[0]!.id;
         focusOnLabelItem(id)

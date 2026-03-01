@@ -39,9 +39,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useDataStore } from '@/stores/data';
+import { useComponentStore } from '@/stores/component';
 import { AIBackendCalls } from '@/api';
+import { nextTick } from 'vue';
 
 const modelValue = defineModel('modelValue', {
   type: String,
@@ -53,8 +55,20 @@ const emit = defineEmits<{
   (e: 'enter'): void
 }>()
 
+const dataStore = useDataStore()
+const componentStore = useComponentStore()
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const fetching = ref(false)
+
+onMounted(() => {
+  componentStore.descInputExpose = {
+    focus,
+    autoGenerateOverallDescription
+  }
+})
+onUnmounted(() => {
+  componentStore.descInputExpose = null
+})
 
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' && !event.shiftKey) {
@@ -63,13 +77,13 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-const focus = () => {
-  textareaRef.value?.focus()
+const focus = async () => {
+  fetching.value = false
+  await nextTick();
+  textareaRef.value?.focus({
+    preventScroll: true
+  })
 }
-
-defineExpose({ focus })
-
-const dataStore = useDataStore()
 
 async function autoGenerateOverallDescription() {
   if (dataStore.activeDataItem == null || dataStore.activeDataLabel == null) {
@@ -95,4 +109,6 @@ async function autoGenerateOverallDescription() {
     fetching.value = false
   }
 }
+
+defineExpose({ focus, autoGenerateOverallDescription })
 </script>
