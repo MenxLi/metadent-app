@@ -17,6 +17,8 @@ To configure the data path, click on the settings button at the top right corner
 ![configure-path](https://metadent.limengxun.com:8000/doc/images/configure-path.jpg)
 
 - More about the path settings can be found in the [Backend configuration](setup-backend.md#prepare-files-for-labeling) section.
+- The path usually start with your username, for example, if your username is `alice` and you follow the directory structure described previously,
+  then the path should be `alice/metadent-project/images/` and `alice/metadent-project/metadata/` for image path and metadata path respectively.
 
 ## Label Images
 

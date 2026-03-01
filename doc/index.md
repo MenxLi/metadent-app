@@ -23,7 +23,7 @@ hero:
 #     details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
 ---
 
-The community lacks free open-source tools for labeling images with multi-modal annotations (e.g., free-text labels + segmentation masks)
+There are limited free open-source tools for labeling images with multi-modal annotations (e.g., free-text labels + segmentation masks)
 which are essential for training/evaluating vision-language models.
 
 This app provides a simple interface for annotating images with:

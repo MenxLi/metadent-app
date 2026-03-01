@@ -5,11 +5,6 @@ It requires [LFSS](https://github.com/menxli/lfss) (Lite File Storage Service) f
 
 The LFSS is essentially a lightweight file storage server that provides RESTful APIs for uploading, downloading, and managing files. It act like a simplified version of AWS S3 or similar services.
 
-:::info
-This guide assumes we are running the LFSS server locally for testing purposes.  
-You can also deploy LFSS on a remote server or cloud service for production use, just change the server address accordingly.
-:::
-
 ## LFSS Server Setup
 
 To set up LFSS for use with the MetaDent App, follow these steps on the server where you want to host (your local machine for this guide):
@@ -23,7 +18,7 @@ pip install 'lfss[all]'
 Add your first user:
 
 ```sh
-lfss-user add <username> --admin --max-storage 1T
+lfss-user add <username> --admin --permission private --max-storage 1T
 ```
 
 **This will result in a hashed access token being generated. Make sure to save it somewhere safe.**
@@ -49,7 +44,7 @@ The MetaDent App requires a specific directory structure for the images to be la
 The structure should look like this ([example](https://metadent.limengxun.com:8000/public/metadent_data_example.zip?download=true)):
 
 ```
-your-project/
+metadent-project/
 ├─ images/
 │  ├─ image1.jpg
 │  ├─ image2.png
