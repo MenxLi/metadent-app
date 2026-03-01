@@ -151,7 +151,7 @@ function saveSettings() {
               <input
                 type="checkbox" class="w-4 h-4"
                 v-model="aiFeatureSet.regionDescriptionOnDraw" />
-              Region description on region draw
+              Region description on contour draw
             </label>
           </div>
         </div>

@@ -3,7 +3,6 @@
 import { ref } from 'vue'
 import { useUserStore } from '@/stores/user';
 import { useRouter } from 'vue-router'
-import { storeToRefs } from 'pinia'
 
 const router = useRouter()
 const token = ref('')
@@ -11,7 +10,6 @@ const error = ref('')
 const loading = ref(false)
 
 const userStore = useUserStore()
-const { settings } = storeToRefs(userStore)
 
 async function handleLogin() {
   error.value = ''
@@ -72,31 +70,6 @@ async function handleLogin() {
             type="password"
             class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
             placeholder="Enter your token"
-          />
-        </div>
-        <div class="mb-4">
-          <label class="flex items-center gap-2 text-gray-700 font-medium">
-            <input type="checkbox" v-model="settings.enableAIAutoGen" />
-            Enable AI to automatically generate descriptions.
-          </label>
-        </div>
-
-        <div v-if="settings.enableAIAutoGen" class="mb-4">
-          <p class="text-gray-700 font-medium mb-2">AI backend endpoint</p>
-          <input
-            type="text"
-            v-model="settings.aiBackendUrl"
-            placeholder="https://xxx.com:xxxxx"
-            class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-        </div>
-        <div v-if="settings.enableAIAutoGen" class="mb-4">
-          <p class="text-gray-700 font-medium mb-2">AI backend endpoint</p>
-          <input
-            type="text"
-            v-model="settings.aiBackendToken"
-            placeholder="Enter token"
-            class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
         <button
