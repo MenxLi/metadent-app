@@ -84,7 +84,7 @@ Used to generate a description of a user-selected polygon region.
 #### Request Body
 
 - `image_id`: The unique identifier of the image.
-- `contours`: The polygon coordinates drawn by the user on the frontend. Format: `[[[x1, y1], [x2, y2], ...]]`.
+- `contours`: The polygon coordinates drawn by the user on the frontend. Format: `[[[x1, y1], [x2, y2], ...]]]`.
   This represents one or multiple polygons.
   The coordinates are normalized to [0, 1] range with respect to the image width and height.
   In the format of (x, y), where x is the horizontal coordinate (starting from the left) and y is the vertical coordinate (starting from the top).
@@ -96,7 +96,7 @@ Used to generate a description of a user-selected polygon region.
   "image_id": "00032",
   "contours": [
     [[0.1, 0.2], [0.15, 0.25], [0.1, 0.3], ...],
-    [[0.5, 0.5], [0.55, 0.55], [0.5, 0.6], ...]
+    [[0.5, 0.5], [0.55, 0.55], [0.5, 0.6], ...],
     ...
   ]
 }
