@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import { ref, type Ref, nextTick } from 'vue'
 import { defineStore } from 'pinia'
 import { type DataItem, type DataInfo, type LockStatus, type DataLabel, FileLabelStatus} from '@/api'
 import { useUserStore } from './user'
@@ -185,12 +185,14 @@ export const useDataStore = defineStore('dataStore', () => {
   }
 
   async function _onActiveDataItemChange() {
-    if (userStore.settings.aiFeatureSet.overallDescriptionOnLoad && !activeDataLabel.value?.overallDescription) {
-      console.debug("auto generating overall description!", componentStore.descInputExpose);
-      componentStore.descInputExpose?.autoGenerateOverallDescription().then(() => {
-        componentStore.descInputExpose?.focus();
-      })
-    }
+    nextTick(() => {
+      if (userStore.settings.aiFeatureSet.overallDescriptionOnLoad && !activeDataLabel.value?.overallDescription) {
+        console.debug("auto generating overall description!", componentStore.descInputExpose);
+        componentStore.descInputExpose?.autoGenerateOverallDescription().then(() => {
+          componentStore.descInputExpose?.focus();
+        })
+      }
+    })
   }
 
   async function saveCurrentLabel() {
