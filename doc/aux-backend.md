@@ -8,9 +8,9 @@ outline: [2, 3]
 
 ## Overview
 
-The MetaDent App supports optional integration with an Auxiliary AI Service for automatic label generation.
+The MetaDent App supports integration with an Auxiliary AI Service for automatic label generation.
 
-This AI-assisted labeling feature is fully optional. If enabled, the frontend will send structured requests to a user-provided backend service. If disabled or misconfigured, the application will automatically fall back to manual labeling.
+This AI-assisted labeling feature is fully optional. If enabled, the frontend will send structured requests to a user-provided backend service.
 
 :::info
 We do not provide a ready-to-use AI backend service, as:
@@ -68,7 +68,7 @@ Used to generate a global description of the entire image.
 
 ```json
 {
-  "idx": "00032",
+  "image_id": "00032",
   "output": "This image shows a patient with multiple dental caries, particularly on the molars. The overall oral hygiene appears poor, with visible plaque accumulation and gingival inflammation."
 }
 ```
@@ -116,7 +116,7 @@ Used to generate a description of a user-selected polygon region.
 }
 ```
 
-## Frontend Behavior and Error Handling
+## Frontend Behavior
 
 AI features can be enabled as needed in the user settings:
 

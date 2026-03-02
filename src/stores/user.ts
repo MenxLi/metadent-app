@@ -5,21 +5,6 @@ import { useRouter } from 'vue-router'
 import { type UserInfo } from '@/api'
 import { useUiStateStore } from './uistate'
 
-function parseVersion(version: string): [number, number, number] {
-  const clean = version.trim().replace(/^v/i, '').split('-')[0] ?? '';
-  const parts = clean.split('.').map((v) => Number.parseInt(v, 10));
-  return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
-}
-
-function isVersionLessThan(current: string, minimum: string): boolean {
-  const [curMajor, curMinor, curPatch] = parseVersion(current);
-  const [minMajor, minMinor, minPatch] = parseVersion(minimum);
-  console.log(`Comparing versions: current=${current} (parsed: ${curMajor}.${curMinor}.${curPatch}), minimum=${minimum} (parsed: ${minMajor}.${minMinor}.${minPatch})`);
-  if (curMajor !== minMajor) return curMajor < minMajor;
-  if (curMinor !== minMinor) return curMinor < minMinor;
-  return curPatch < minPatch;
-}
-
 interface UserSettingsAiFeatureSet {
   overallDescriptionOnLoad: boolean;
   regionDescriptionOnDraw: boolean;
@@ -35,7 +20,6 @@ interface UserSettings {
   aiFeatureSet: UserSettingsAiFeatureSet;
 }
 
-const MIN_SUPPORTED_BACKEND_VERSION = '0.18.0';
 export const useUserStore = defineStore('UserInfo', () => {
   const backendUrl = ref("http://localhost:8000");
   const hashkey = ref("");
@@ -48,7 +32,7 @@ export const useUserStore = defineStore('UserInfo', () => {
       imageDir: "public/images/",
       metaDir: "public/meta/",
       loadNextGoToUnlabeled: true,
-      enableAIAutoGen: true,
+      enableAIAutoGen: false,
       aiBackendUrl: "",
       aiBackendToken: "",
       aiFeatureSet: {
@@ -77,21 +61,6 @@ export const useUserStore = defineStore('UserInfo', () => {
     );
   }
 
-  async function warnIfBackendVersionTooLow() {
-    const uiStateStore = useUiStateStore();
-    try {
-      const backendVersion = await backend.version();
-      if (isVersionLessThan(backendVersion, MIN_SUPPORTED_BACKEND_VERSION)) {
-        uiStateStore.msg.set(
-          `LFSS backend version ${backendVersion} is below the minimum supported version ${MIN_SUPPORTED_BACKEND_VERSION}. Some features may not work correctly.`,
-          'warning'
-        );
-      }
-    } catch (error) {
-      console.warn('Failed to check LFSS backend version:', error);
-    }
-  }
-
   async function login(): Promise<UserInfo | null> {
 
     backend.configureLFSS({
@@ -105,7 +74,15 @@ export const useUserStore = defineStore('UserInfo', () => {
     const userInfo = await backend.auth();
     if (userInfo) {
       user.value = userInfo;
-      await warnIfBackendVersionTooLow();
+
+      // warn user if backend version is too low
+      const validateResult = await backend.validateBackendVersion();
+      if (!validateResult.valid) {
+        useUiStateStore().msg.set(
+          `LFSS backend version ${validateResult.current} is below the minimum supported version ${validateResult.minimum}. Some features may not work correctly.`,
+          'warning'
+        );
+      }
     }
     else {
       user.value = null;
