@@ -74,10 +74,6 @@ function deleteLabel() {
             $emit('select-previous')
           }
         }
-        if (e.key === 'Delete') {
-          e.preventDefault()
-          $emit('delete', model.id)
-        }
       }"
     />
 
