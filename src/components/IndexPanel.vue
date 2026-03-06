@@ -3,6 +3,8 @@
   import { useDataStore } from '@/stores/data';
   import { useUiStateStore } from '@/stores/uistate';
   import { computed } from 'vue';
+  import { debounce } from '@/utils';
+
   const dataStore = useDataStore();
   const uiStateStore = useUiStateStore();
 
@@ -21,10 +23,16 @@
     }
   }
 
-const pageIdxPlusOne = computed({
-  get: () => uiStateStore.pageIndex + 1,
-  set: (val: number) => { uiStateStore.setPageIndex(val - 1); }
-})
+  const debouncedUpdateIndex = debounce(() => {
+    dataStore.updateIndex();
+  }, 300);
+  const pageIdxPlusOne = computed({
+    get: () => uiStateStore.pageIndex + 1,
+    set: (val: number) => {
+      uiStateStore.setPageIndex(val - 1);
+      debouncedUpdateIndex();
+    }
+  })
 </script>
 
 <template>
