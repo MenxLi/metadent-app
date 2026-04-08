@@ -1,20 +1,20 @@
 <template>
   <div
     class="relative"
+
+    @mousedown="startDrawing"
+    @mousemove="draw"
+    @mouseup="stopDrawing"
+
+    @touchstart="startDrawing"
+    @touchmove.prevent="draw"
+    @touchend="stopDrawing"
   >
     <img
       ref="imageRef"
       :src="imageSrc"
       class="object-contain select-none"
       :style="{ maxHeight: `${maxHeight}px`, maxWidth: `${maxWidth}px`}"
-
-      @mousedown="startDrawing"
-      @mousemove="draw"
-      @mouseup="stopDrawing"
-
-      @touchstart="startDrawing"
-      @touchmove.prevent="draw"
-      @touchend="stopDrawing"
 
       @load="onImageLoad"
       @dragstart.prevent
@@ -28,14 +28,28 @@
       :height="imageSize.height"
     >
       <template v-if="!hideContours">
-        <template v-for="label in labels" :key="label.id">
+        <template v-for="label in nonActiveLabels" :key="label.id">
           <template v-for="(contour, contourIndex) in label.contours" :key="`${label.id}-${contourIndex}`">
             <polygon
               :points="getReactiveSvgPoints(contour)"
-              :fill="label.color + '66'"
-              :stroke="label.color"
-              stroke-width="2"
+              :fill="getPolygonFillColor(label.id, contourIndex, label.color)"
+              :stroke="getPolygonStrokeColor(label.id, contourIndex, label.color)"
+              :stroke-width="getPolygonStrokeWidth(label.id, contourIndex)"
               fill-rule="evenodd"
+            />
+          </template>
+        </template>
+        <template v-if="activeLabelItem">
+          <template v-for="(contour, contourIndex) in activeLabelItem.contours" :key="`${activeLabelItem.id}-${contourIndex}`">
+            <polygon
+              :points="getReactiveSvgPoints(contour)"
+              :fill="getPolygonFillColor(activeLabelItem.id, contourIndex, activeLabelItem.color)"
+              :stroke="getPolygonStrokeColor(activeLabelItem.id, contourIndex, activeLabelItem.color)"
+              :stroke-width="getPolygonStrokeWidth(activeLabelItem.id, contourIndex)"
+              fill-rule="evenodd"
+              class="pointer-events-auto"
+              @mouseenter="setHoveredPolygon(activeLabelItem.id, contourIndex)"
+              @mouseleave="clearHoveredPolygon(activeLabelItem.id, contourIndex)"
             />
           </template>
         </template>
@@ -59,7 +73,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, nextTick, watch } from 'vue';
+import { ref, computed, nextTick, watch, onMounted, onBeforeUnmount } from 'vue';
 import type { LabelItem } from '@/api';
 import { AIBackendCalls } from '@/api'
 import { resampleContour } from '@/utils';
@@ -140,9 +154,97 @@ watch(
 
 const drawing = ref(false);
 const currentContour = ref<[number, number][]>([]);
+const hoveredPolygon = ref<{ labelId: string; contourIndex: number } | null>(null);
+const activeLabelItem = computed(() => props.labels.find(label => label.id === props.activeLabel) ?? null);
+const nonActiveLabels = computed(() => props.labels.filter(label => label.id !== props.activeLabel));
 
 const imageLoaded = ref(false);
 const imageSize = ref({ width: 1, height: 1 });
+
+function isHoveredPolygon(labelId: string, contourIndex: number) {
+  return hoveredPolygon.value?.labelId === labelId && hoveredPolygon.value?.contourIndex === contourIndex;
+}
+
+function setHoveredPolygon(labelId: string, contourIndex: number) {
+  if (props.activeLabel !== labelId) return;
+  hoveredPolygon.value = { labelId, contourIndex };
+}
+
+function clearHoveredPolygon(labelId: string, contourIndex: number) {
+  if (isHoveredPolygon(labelId, contourIndex)) {
+    hoveredPolygon.value = null;
+  }
+}
+
+function withAlphaHex(color: string, alphaHex: string): string {
+  const hex = color.trim();
+  if (!/^#([0-9a-fA-F]{6})$/.test(hex)) return color;
+  return `${hex}${alphaHex}`;
+}
+
+function getPolygonFillColor(labelId: string, contourIndex: number, baseColor: string) {
+  const isActive = props.activeLabel === labelId;
+  const isHoveredActive = isActive && isHoveredPolygon(labelId, contourIndex);
+  const alpha = isHoveredActive ? 'AA' : isActive ? '77' : '44';
+  return withAlphaHex(baseColor, alpha);
+}
+
+function getPolygonStrokeColor(labelId: string, contourIndex: number, baseColor: string) {
+  const isActive = props.activeLabel === labelId;
+  const isHoveredActive = isActive && isHoveredPolygon(labelId, contourIndex);
+  const alpha = isHoveredActive ? 'FF' : isActive ? 'DD' : '77';
+  return withAlphaHex(baseColor, alpha);
+}
+
+function getPolygonStrokeWidth(labelId: string, contourIndex: number) {
+  const isActive = props.activeLabel === labelId;
+  if (!isActive) return 1.2;
+  return isHoveredPolygon(labelId, contourIndex) ? 3 : 2.2;
+}
+
+function removeContour(labelId: string, contourIndex: number) {
+  const updatedLabels: LabelItem[] = props.labels.map(label => {
+    if (label.id !== labelId) return label;
+    return {
+      ...label,
+      contours: label.contours.filter((_, i) => i !== contourIndex),
+    };
+  });
+  emit('update:labels', updatedLabels);
+}
+
+function handleDeleteHoveredPolygon(event: KeyboardEvent) {
+  if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+  if (!hoveredPolygon.value) return;
+
+  const activeElement = document.activeElement as HTMLElement | null;
+  const tagName = activeElement?.tagName?.toLowerCase();
+  const isEditable =
+    activeElement?.isContentEditable ||
+    tagName === 'input' ||
+    tagName === 'textarea' ||
+    tagName === 'select';
+  if (isEditable) return;
+
+  const { labelId, contourIndex } = hoveredPolygon.value;
+  if (props.activeLabel !== labelId) return;
+  removeContour(labelId, contourIndex);
+  hoveredPolygon.value = null;
+}
+
+watch(() => props.activeLabel, (activeLabel) => {
+  if (hoveredPolygon.value && hoveredPolygon.value.labelId !== activeLabel) {
+    hoveredPolygon.value = null;
+  }
+});
+
+onMounted(() => {
+  window.addEventListener('keydown', handleDeleteHoveredPolygon);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleDeleteHoveredPolygon);
+});
 
 function onImageLoad() {
   nextTick(() => {
