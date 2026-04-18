@@ -9,6 +9,8 @@ It also supports plugin-server, allowing integration with external models for au
 
 More can be found at the [documentation page](https://menxli.github.io/metadent-app/docs/).
 
+![label-interface](https://metadent.limengxun.com:8000/doc/images/main-app.jpg)
+
 ## About MetaDent
 
 MetaDent is an intra-oral image dataset, benchmark, and an annotation app for vision-language tasks in dentistry.
