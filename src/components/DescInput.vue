@@ -3,7 +3,7 @@
     <textarea
       v-model="modelValue"
       :disabled="fetching"
-      class="w-full p-2 border border-gray-300 rounded-lg shadow-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-500"
+      class="w-full p-2 border border-gray-300 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-500"
       placeholder="Overall description"
       ref="textareaRef"
       rows="3"

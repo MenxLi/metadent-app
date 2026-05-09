@@ -36,6 +36,9 @@
               :stroke="getPolygonStrokeColor(label.id, contourIndex, label.color)"
               :stroke-width="getPolygonStrokeWidth(label.id, contourIndex)"
               fill-rule="evenodd"
+              class="pointer-events-auto cursor-pointer"
+              @mousedown.left.stop="activateLabel(label.id)"
+              @touchstart.stop.prevent="activateLabel(label.id)"
             />
           </template>
         </template>
@@ -93,6 +96,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:labels', value: LabelItem[]): void;
   (e: 'update:crop', value: [number, number, number, number] | null): void;
+  (e: 'update:activeLabel', value: string): void;
 }>();
 
 const imageRef = ref<HTMLImageElement | null>(null);
@@ -174,6 +178,12 @@ function clearHoveredPolygon(labelId: string, contourIndex: number) {
   if (isHoveredPolygon(labelId, contourIndex)) {
     hoveredPolygon.value = null;
   }
+}
+
+function activateLabel(labelId: string) {
+  if (props.activeLabel === labelId) return;
+  hoveredPolygon.value = null;
+  emit('update:activeLabel', labelId);
 }
 
 function withAlphaHex(color: string, alphaHex: string): string {

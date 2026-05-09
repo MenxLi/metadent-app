@@ -228,7 +228,7 @@
           :max-width="imageMaxW"
           v-model:labels="dataStore.activeDataLabel.items"
           v-model:crop="dataStore.activeDataLabel.crop"
-          :activeLabel="activeLabel"
+          v-model:activeLabel="activeLabel"
           :hideContours="hideContours"
           >
         </ImageLabeler>
