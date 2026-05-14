@@ -37,8 +37,8 @@
               :stroke-width="getPolygonStrokeWidth(label.id, contourIndex)"
               fill-rule="evenodd"
               class="pointer-events-auto cursor-pointer"
-              @mousedown.left.stop="activateLabel(label.id)"
-              @touchstart.stop.prevent="activateLabel(label.id)"
+              @click.left.stop="maybeActivateLabel(label.id)"
+              @touchend.stop.prevent="maybeActivateLabel(label.id)"
             />
           </template>
         </template>
@@ -159,8 +159,12 @@ watch(
 const drawing = ref(false);
 const currentContour = ref<[number, number][]>([]);
 const hoveredPolygon = ref<{ labelId: string; contourIndex: number } | null>(null);
+const drawGestureStartedAt = ref<[number, number] | null>(null);
+const suppressNextPolygonActivation = ref(false);
 const activeLabelItem = computed(() => props.labels.find(label => label.id === props.activeLabel) ?? null);
 const nonActiveLabels = computed(() => props.labels.filter(label => label.id !== props.activeLabel));
+
+const ACTIVATION_DRAG_THRESHOLD = 0.01;
 
 const imageLoaded = ref(false);
 const imageSize = ref({ width: 1, height: 1 });
@@ -184,6 +188,14 @@ function activateLabel(labelId: string) {
   if (props.activeLabel === labelId) return;
   hoveredPolygon.value = null;
   emit('update:activeLabel', labelId);
+}
+
+function maybeActivateLabel(labelId: string) {
+  if (suppressNextPolygonActivation.value) {
+    suppressNextPolygonActivation.value = false;
+    return;
+  }
+  activateLabel(labelId);
 }
 
 function withAlphaHex(color: string, alphaHex: string): string {
@@ -300,6 +312,18 @@ function getNormalizedCoordinates(event: MouseEvent | TouchEvent): [number, numb
   return [x, y];
 }
 
+function resetDrawGestureTracking() {
+  drawGestureStartedAt.value = null;
+}
+
+function hasDraggedFromStart(point: [number, number]) {
+  if (!drawGestureStartedAt.value) return false;
+  const [startX, startY] = drawGestureStartedAt.value;
+  const deltaX = point[0] - startX;
+  const deltaY = point[1] - startY;
+  return Math.hypot(deltaX, deltaY) >= ACTIVATION_DRAG_THRESHOLD;
+}
+
 function startDrawing(event: MouseEvent | TouchEvent) {
   if (
     (
@@ -308,8 +332,11 @@ function startDrawing(event: MouseEvent | TouchEvent) {
     )
     && props.activeLabel) {
     // left click initiates drawing
+    const startPoint = getNormalizedCoordinates(event);
     drawing.value = true;
-    currentContour.value = [getNormalizedCoordinates(event)];
+    currentContour.value = [startPoint];
+    drawGestureStartedAt.value = startPoint;
+    suppressNextPolygonActivation.value = false;
     console.log('startDrawing', event);
   }
   else if ( event instanceof MouseEvent && event.button == 2) {
@@ -331,7 +358,11 @@ function startDrawing(event: MouseEvent | TouchEvent) {
 function draw(event: MouseEvent | TouchEvent) {
   // if (!drawing.value) return;
   if (drawing.value) {
-    currentContour.value.push(getNormalizedCoordinates(event));
+    const point = getNormalizedCoordinates(event);
+    currentContour.value.push(point);
+    if (!suppressNextPolygonActivation.value && hasDraggedFromStart(point)) {
+      suppressNextPolygonActivation.value = true;
+    }
   }
   if (cropping.value && currentCrop.value) {
     const [x, y] = getNormalizedCoordinates(event);
@@ -371,6 +402,7 @@ function stopDrawing() {
     }
 
     currentContour.value = [];
+    resetDrawGestureTracking();
   }
 
   if (cropping.value && currentCrop.value) {
@@ -392,6 +424,10 @@ function stopDrawing() {
     else{
       emit('update:crop', crop);
     }
+  }
+
+  if (!drawing.value) {
+    resetDrawGestureTracking();
   }
 }
 
