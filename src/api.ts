@@ -2,6 +2,7 @@ import Connector from '@/lfss';
 import type { Config } from '@/lfss';
 import { useUserStore } from '@/stores/user'
 import { useUiStateStore } from './stores/uistate';
+import { to_snake_case_obj } from './utils';
 
 export interface UserInfo {
   username: string,
@@ -490,8 +491,15 @@ export class AIBackendCalls {
     return response.output || "";
   }
 
-  public async regionDescription(image_id: string, contours: [number, number][][]): Promise<string> {
-    const response = await this.fetch('region-description', { image_id, contours });
+  /// Generate region description for the given contours, with optional overall context
+  /// The context should be pre-processed to exclude the region to be described, to avoid information leakage.
+  /// The frontend will/should handle this pre-processing.
+  public async regionDescription(image_id: string, contours: [number, number][][], context: null | DataLabel = null): Promise<string> {
+    if (context) {
+      // convert context to snake_case to be compatible with python backend
+      context = to_snake_case_obj(context) as unknown as DataLabel;
+    }
+    const response = await this.fetch('region-description', { image_id, contours, context });
     return response.output || "";
   }
 

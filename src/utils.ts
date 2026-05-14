@@ -145,3 +145,19 @@ export function debounce<T extends (...args: any[]) => any>(fn: T, delay: number
         }, delay);
     };
 }
+
+export function to_snake_case_obj(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(to_snake_case_obj);
+  } else if (obj !== null && typeof obj === 'object') {
+    const newObj: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        newObj[snakeKey] = to_snake_case_obj(obj[key]);
+      }
+    }
+    return newObj;
+  }
+  return obj;
+}

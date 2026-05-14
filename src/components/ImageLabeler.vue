@@ -86,12 +86,13 @@
 
 <script lang="ts" setup>
 import { ref, computed, nextTick, watch, onMounted, onBeforeUnmount, toRef } from 'vue';
-import type { LabelItem } from '@/api';
+import type { LabelItem, DataLabel } from '@/api';
 import { AIBackendCalls } from '@/api'
 import { useDataStore } from '@/stores/data';
 import { useUserStore } from '@/stores/user'
 import { useImageLabelerInteraction, type CropDraft, type CropRect, type Point } from '@/composables/useImageLabelerInteraction';
 
+// TODO: maybe include the whole data label object instead of just items to the props
 const props = defineProps<{
   imageSrc: string;
   maxHeight: number;
@@ -363,8 +364,13 @@ async function autoGenerateRegionDescription(label: LabelItem) {
   const image_id = fileName.replace(/\.[^/.]+$/, '');
 
   try {
+    const context = JSON.parse(JSON.stringify({
+      ...dataStore.activeDataLabel,
+    })) as DataLabel;
+    // remove current label from context
+    context.items = context.items.filter(item => item.id !== label.id);
     const res = await new AIBackendCalls().regionDescription(
-      image_id, label.contours,
+      image_id, label.contours, context
     );
     console.log('Auto-complete response:', res)
 
