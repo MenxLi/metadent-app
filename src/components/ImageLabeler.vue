@@ -1,6 +1,7 @@
 <template>
   <div
     class="relative"
+    :class="canvasCursorClass"
 
     @mousedown="startDrawing"
     @mousemove="draw"
@@ -20,41 +21,49 @@
       @dragstart.prevent
       @contextmenu="(event) => event.preventDefault()"
     />
+    <div
+      v-if="!isHintCollapsed"
+      class="absolute top-2.5 left-2.5 right-2.5 z-10 sm:right-auto"
+    >
+      <div
+        class="max-w-xs overflow-hidden rounded-xl border border-white/15 bg-stone-950/55 text-white shadow-lg backdrop-blur-md"
+      >
+        <div class="flex items-center justify-between gap-2 border-b border-white/10 px-2.5 py-1.5">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span
+              class="rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
+              :class="hintBadgeClass"
+            >
+              {{ hintBadgeLabel }}
+            </span>
+            <span class="truncate text-[11px] text-white/65">Help</span>
+          </div>
+        </div>
+        <p class="px-2.5 py-2 text-xs leading-4.5 text-white/90">
+          {{ interactionHint }}
+        </p>
+      </div>
+    </div>
     <svg
-      ref="svgRef"
       class="absolute top-0 left-0 pointer-events-none"
       xmlns="http://www.w3.org/2000/svg"
       :width="imageSize.width"
       :height="imageSize.height"
     >
       <template v-if="!hideContours">
-        <template v-for="label in nonActiveLabels" :key="label.id">
-          <template v-for="(contour, contourIndex) in label.contours" :key="`${label.id}-${contourIndex}`">
-            <polygon
-              :points="getReactiveSvgPoints(contour)"
-              :fill="getPolygonFillColor(label.id, contourIndex, label.color)"
-              :stroke="getPolygonStrokeColor(label.id, contourIndex, label.color)"
-              :stroke-width="getPolygonStrokeWidth(label.id, contourIndex)"
-              fill-rule="evenodd"
-              class="pointer-events-auto cursor-pointer"
-              @click.left.stop="maybeActivateLabel(label.id)"
-              @touchend.stop.prevent="maybeActivateLabel(label.id)"
-            />
-          </template>
-        </template>
-        <template v-if="activeLabelItem">
-          <template v-for="(contour, contourIndex) in activeLabelItem.contours" :key="`${activeLabelItem.id}-${contourIndex}`">
-            <polygon
-              :points="getReactiveSvgPoints(contour)"
-              :fill="getPolygonFillColor(activeLabelItem.id, contourIndex, activeLabelItem.color)"
-              :stroke="getPolygonStrokeColor(activeLabelItem.id, contourIndex, activeLabelItem.color)"
-              :stroke-width="getPolygonStrokeWidth(activeLabelItem.id, contourIndex)"
-              fill-rule="evenodd"
-              class="pointer-events-auto"
-              @mouseenter="setHoveredPolygon(activeLabelItem.id, contourIndex)"
-              @mouseleave="clearHoveredPolygon(activeLabelItem.id, contourIndex)"
-            />
-          </template>
+        <template v-for="contourItem in displayContours" :key="contourItem.key">
+          <polygon
+            :points="getReactiveSvgPoints(contourItem.contour)"
+            :fill="getPolygonFillColor(contourItem.labelId, contourItem.contourIndex, contourItem.color)"
+            :stroke="getPolygonStrokeColor(contourItem.labelId, contourItem.contourIndex, contourItem.color)"
+            :stroke-width="getPolygonStrokeWidth(contourItem.labelId, contourItem.contourIndex)"
+            fill-rule="evenodd"
+            class="pointer-events-auto"
+            @click.left.stop="contourItem.selectable && maybeActivateLabel(contourItem.labelId)"
+            @touchend.stop.prevent="contourItem.selectable && maybeActivateLabel(contourItem.labelId)"
+            @mouseenter="contourItem.isActive && setHoveredPolygon(contourItem.labelId, contourItem.contourIndex)"
+            @mouseleave="contourItem.isActive && clearHoveredPolygon(contourItem.labelId, contourItem.contourIndex)"
+          />
         </template>
       </template>
       <polyline
@@ -76,59 +85,41 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, nextTick, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, nextTick, watch, onMounted, onBeforeUnmount, toRef } from 'vue';
 import type { LabelItem } from '@/api';
 import { AIBackendCalls } from '@/api'
-import { resampleContour } from '@/utils';
 import { useDataStore } from '@/stores/data';
 import { useUserStore } from '@/stores/user'
+import { useImageLabelerInteraction, type CropDraft, type CropRect, type Point } from '@/composables/useImageLabelerInteraction';
 
 const props = defineProps<{
   imageSrc: string;
   maxHeight: number;
   maxWidth: number;
   labels: LabelItem[];
-  crop: [number, number, number, number] | null; // [x, y, width, height] in normalized coordinates [0,1]
+  crop: CropRect | null; // [x, y, width, height] in normalized coordinates [0,1]
   activeLabel: string | null;
   hideContours: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:labels', value: LabelItem[]): void;
-  (e: 'update:crop', value: [number, number, number, number] | null): void;
+  (e: 'update:crop', value: CropRect | null): void;
   (e: 'update:activeLabel', value: string): void;
 }>();
 
-const imageRef = ref<HTMLImageElement | null>(null);
-const svgRef = ref<SVGSVGElement | null>(null);
-
-const cropping = ref(false);
-// currentCrop is the crop rectangle being drawn in:
-// [[point1.x, point1.y], [point2.x, point2.y]]
-// the order is not important, but it should be normalized to [0,1] coordinates
-const currentCrop = ref<[[number, number], [number, number]] | null>(null);
-const currentCrop2RectFn = (v: [[number, number], [number, number]]) => {
-  const [p1, p2] = v;
-  return [
-    [Math.min(p1[0], p2[0]), Math.min(p1[1], p2[1])],
-    [Math.max(p1[0], p2[0]), Math.min(p1[1], p2[1])],
-    [Math.max(p1[0], p2[0]), Math.max(p1[1], p2[1])],
-    [Math.min(p1[0], p2[0]), Math.max(p1[1], p2[1])],
-    [Math.min(p1[0], p2[0]), Math.min(p1[1], p2[1])],
-  ] as [number, number][];
+type HoveredPolygonState = { labelId: string; contourIndex: number };
+type DisplayContour = {
+  key: string;
+  labelId: string;
+  contourIndex: number;
+  contour: Point[];
+  color: string;
+  isActive: boolean;
+  selectable: boolean;
 };
-watch(() => props.crop, () => {
-  console.log('crop prop changed', props.crop);
-  if (!props.crop) {
-    currentCrop.value = null;
-    return;
-  }
-  const [x, y, width, height] = props.crop;
-  currentCrop.value = [
-    [x, y],
-    [x + width, y + height]
-  ];
-}, { immediate: true });
+
+const imageRef = ref<HTMLImageElement | null>(null);
 
 watch(
   () => props.labels,
@@ -156,18 +147,64 @@ watch(
   { deep: true }
 );
 
-const drawing = ref(false);
-const currentContour = ref<[number, number][]>([]);
-const hoveredPolygon = ref<{ labelId: string; contourIndex: number } | null>(null);
-const drawGestureStartedAt = ref<[number, number] | null>(null);
-const suppressNextPolygonActivation = ref(false);
-const activeLabelItem = computed(() => props.labels.find(label => label.id === props.activeLabel) ?? null);
-const nonActiveLabels = computed(() => props.labels.filter(label => label.id !== props.activeLabel));
-
-const ACTIVATION_DRAG_THRESHOLD = 0.01;
-
-const imageLoaded = ref(false);
+const hoveredPolygon = ref<HoveredPolygonState | null>(null);
 const imageSize = ref({ width: 1, height: 1 });
+
+const displayContours = computed<DisplayContour[]>(() =>
+  props.labels.flatMap(label =>
+    label.contours.map((contour, contourIndex) => ({
+      key: `${label.id}-${contourIndex}`,
+      labelId: label.id,
+      contourIndex,
+      contour,
+      color: label.color,
+      isActive: label.id === props.activeLabel,
+      selectable: label.id !== props.activeLabel,
+    }))
+  )
+);
+
+const userStore = useUserStore();
+
+const {
+  canvasCursorClass,
+  consumePolygonActivationSuppression,
+  currentContour,
+  currentCrop,
+  draw,
+  drawing,
+  interactionHint,
+  startDrawing,
+  stopDrawing,
+} = useImageLabelerInteraction({
+  imageRef,
+  activeLabel: toRef(props, 'activeLabel'),
+  crop: toRef(props, 'crop'),
+  onCropCommitted: (crop) => emit('update:crop', crop),
+  onContourCommitted: (contour) => commitContour(contour),
+});
+
+const isHintCollapsed = computed(() => userStore.settings.imageLabelerHintCollapsed);
+
+const hintBadgeLabel = computed(() => {
+  if (interactionHint.value === 'Release to finish crop') return 'Cropping';
+  if (interactionHint.value === 'Release to finish contour') return 'Drawing';
+  if (props.activeLabel) return 'Ready';
+  return 'Select';
+});
+
+const hintBadgeClass = computed(() => {
+  if (interactionHint.value === 'Release to finish crop') {
+    return 'bg-cyan-300/20 text-cyan-100 ring-1 ring-inset ring-cyan-200/30';
+  }
+  if (interactionHint.value === 'Release to finish contour') {
+    return 'bg-emerald-300/20 text-emerald-100 ring-1 ring-inset ring-emerald-200/30';
+  }
+  if (props.activeLabel) {
+    return 'bg-amber-300/20 text-amber-100 ring-1 ring-inset ring-amber-200/30';
+  }
+  return 'bg-white/10 text-white/80 ring-1 ring-inset ring-white/15';
+});
 
 function isHoveredPolygon(labelId: string, contourIndex: number) {
   return hoveredPolygon.value?.labelId === labelId && hoveredPolygon.value?.contourIndex === contourIndex;
@@ -191,8 +228,7 @@ function activateLabel(labelId: string) {
 }
 
 function maybeActivateLabel(labelId: string) {
-  if (suppressNextPolygonActivation.value) {
-    suppressNextPolygonActivation.value = false;
+  if (consumePolygonActivationSuppression()) {
     return;
   }
   activateLabel(labelId);
@@ -274,167 +310,50 @@ function onImageLoad() {
       const { width, height } = imageRef.value.getBoundingClientRect();
       imageSize.value = { width, height };
     }
-    imageLoaded.value = true;
   });
 }
 
-function toSvgPoints(contour: [number, number][]): string {
+function toSvgPoints(contour: Point[]): string {
   const { width, height } = imageSize.value;
   return contour.map(([x, y]) => `${x * width},${y * height}`).join(' ');
 }
 
-function getReactiveSvgPoints(contour: [number, number][]) {
+function getReactiveSvgPoints(contour: Point[]) {
   return computed(() => toSvgPoints(contour)).value;
 }
 
-function getReactiveCropPoints(crop: [[number, number], [number, number]] | null) {
+function getReactiveCropPoints(crop: CropDraft | null) {
   if (!crop) return '';
-  return computed(() => {
-    const contourPts = currentCrop2RectFn(crop);
-    return toSvgPoints(contourPts);
-  }).value;
+  const contour: Point[] = [
+    [Math.min(crop[0][0], crop[1][0]), Math.min(crop[0][1], crop[1][1])],
+    [Math.max(crop[0][0], crop[1][0]), Math.min(crop[0][1], crop[1][1])],
+    [Math.max(crop[0][0], crop[1][0]), Math.max(crop[0][1], crop[1][1])],
+    [Math.min(crop[0][0], crop[1][0]), Math.max(crop[0][1], crop[1][1])],
+    [Math.min(crop[0][0], crop[1][0]), Math.min(crop[0][1], crop[1][1])],
+  ];
+  return computed(() => toSvgPoints(contour)).value;
 }
 
-function getNormalizedCoordinates(event: MouseEvent | TouchEvent): [number, number] {
-  const img = imageRef.value;
-  if (!img) return [0, 0];
-  const rect = img.getBoundingClientRect();
-  let x = 0;
-  let y = 0;
-  if (event instanceof MouseEvent) {
-    x = (event.clientX - rect.left) / rect.width;
-    y = (event.clientY - rect.top) / rect.height;
-  }
-  else if (event instanceof TouchEvent && event.touches.length > 0) {
-    x = (event.touches[0]!.clientX - rect.left) / rect.width;
-    y = (event.touches[0]!.clientY - rect.top) / rect.height;
-  }
-  return [x, y];
-}
+function commitContour(contour: Point[]) {
+  if (!props.activeLabel) return;
 
-function resetDrawGestureTracking() {
-  drawGestureStartedAt.value = null;
-}
+  const updatedLabels: LabelItem[] = props.labels.map(label =>
+    label.id === props.activeLabel
+      ? { ...label, contours: [...label.contours, contour] }
+      : label
+  );
+  emit('update:labels', updatedLabels);
 
-function hasDraggedFromStart(point: [number, number]) {
-  if (!drawGestureStartedAt.value) return false;
-  const [startX, startY] = drawGestureStartedAt.value;
-  const deltaX = point[0] - startX;
-  const deltaY = point[1] - startY;
-  return Math.hypot(deltaX, deltaY) >= ACTIVATION_DRAG_THRESHOLD;
-}
-
-function startDrawing(event: MouseEvent | TouchEvent) {
-  if (
-    (
-      (event instanceof MouseEvent && event.button === 0) ||
-      (event instanceof TouchEvent && event.touches.length === 1)
-    )
-    && props.activeLabel) {
-    // left click initiates drawing
-    const startPoint = getNormalizedCoordinates(event);
-    drawing.value = true;
-    currentContour.value = [startPoint];
-    drawGestureStartedAt.value = startPoint;
-    suppressNextPolygonActivation.value = false;
-    console.log('startDrawing', event);
-  }
-  else if ( event instanceof MouseEvent && event.button == 2) {
-    // right click initiates crop
-    event.preventDefault();
-    const [x, y] = getNormalizedCoordinates(event);
-    if (props.crop) { // If crop already exists, reset it
-      console.log('resetCrop');
-      emit('update:crop', null);
-    }
-    else { // Start a new crop
-      console.log('startCrop', event);
-      cropping.value = true;
-      currentCrop.value = [[x, y], [x, y]]; // start crop at the clicked point
-    }
-  }
-}
-
-function draw(event: MouseEvent | TouchEvent) {
-  // if (!drawing.value) return;
-  if (drawing.value) {
-    const point = getNormalizedCoordinates(event);
-    currentContour.value.push(point);
-    if (!suppressNextPolygonActivation.value && hasDraggedFromStart(point)) {
-      suppressNextPolygonActivation.value = true;
-    }
-  }
-  if (cropping.value && currentCrop.value) {
-    const [x, y] = getNormalizedCoordinates(event);
-    if (currentCrop.value) {
-      currentCrop.value[1] = [x, y]; // update the second point of the crop rectangle
-    }
-  }
-}
-
-function stopDrawing() {
-  if (drawing.value && props.activeLabel) {
-    // finalize the contour
-    drawing.value = false;
-
-    const resampledContour = resampleContour(currentContour.value);
-    // check if resampledContour has at least some points
-    const area = Math.abs(resampledContour.reduce((acc, point, index) => {
-      const nextPoint = resampledContour[(index + 1) % resampledContour.length];
-      return acc + (point[0] * nextPoint![1] - nextPoint![0] * point[1]);
-    }, 0)) / 2;
-    if (area < 1e-4) {
-      currentContour.value = [];
-      console.warn('Contour area too small, ignoring');
-      return;
-    }
-
-    const updatedLabels: LabelItem[] = props.labels.map(label =>
-      label.id === props.activeLabel
-        ? { ...label, contours: [...label.contours, resampledContour] }
-        : label
-    );
-    emit('update:labels', updatedLabels);
-
-    const label = updatedLabels.find(l => l.id === props.activeLabel);
-    if (label && label.autoGenerated !== false) {
-      autoGenerateRegionDescription(label);
-    }
-
-    currentContour.value = [];
-    resetDrawGestureTracking();
-  }
-
-  if (cropping.value && currentCrop.value) {
-    // If crop is finalized, we can emit the crop update
-    console.log('finalizeCrop');
-    cropping.value = false;
-    const crop = [
-      Math.min(currentCrop.value[0][0], currentCrop.value[1][0]),
-      Math.min(currentCrop.value[0][1], currentCrop.value[1][1]),
-      Math.abs(currentCrop.value[1][0] - currentCrop.value[0][0]),
-      Math.abs(currentCrop.value[1][1] - currentCrop.value[0][1])
-    ] as [number, number, number, number];
-    currentCrop.value = null;
-    const MIN_CROP_SIZE = 0.05; // minimum size for crop to be valid
-    if (crop[2] < MIN_CROP_SIZE || crop[3] < MIN_CROP_SIZE) {
-      console.warn('Crop too small, resetting');
-      emit('update:crop', null);
-    }
-    else{
-      emit('update:crop', crop);
-    }
-  }
-
-  if (!drawing.value) {
-    resetDrawGestureTracking();
+  const label = updatedLabels.find(l => l.id === props.activeLabel);
+  if (label && label.autoGenerated !== false) {
+    autoGenerateRegionDescription(label);
   }
 }
 
 const dataStore = useDataStore();
+const userStoreForAutoGen = userStore;
 async function autoGenerateRegionDescription(label: LabelItem) {
-  const userStore = useUserStore()
-  const settings = userStore.settings
+  const settings = userStoreForAutoGen.settings
   if (!settings.enableAIAutoGen) {
     return
   }
