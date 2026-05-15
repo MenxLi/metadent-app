@@ -21,28 +21,59 @@
       @dragstart.prevent
       @contextmenu="(event) => event.preventDefault()"
     />
-    <div
-      v-if="!isHintCollapsed"
-      class="absolute top-2.5 left-2.5 right-2.5 z-10 sm:right-auto"
+    <div v-if="userStore.settings.showImageLabelerHint"
+      class="pointer-events-none"
     >
       <div
-        class="max-w-xs overflow-hidden rounded-xl border border-white/15 bg-stone-950/55 text-white shadow-lg backdrop-blur-md"
+        v-if="!isHintCollapsed"
+        class="pointer-events-none absolute top-2 left-2 right-2 z-10 sm:right-auto"
       >
-        <div class="flex items-center justify-between gap-2 border-b border-white/10 px-2.5 py-1.5">
-          <div class="flex items-center gap-1.5 min-w-0">
-            <span
-              class="rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
-              :class="hintBadgeClass"
+        <div
+          class="max-w-60 overflow-hidden rounded-lg border border-white/10 bg-stone-950/30 text-white shadow-md backdrop-blur-sm"
+        >
+          <div class="flex items-center justify-between gap-2 border-b border-white/8 px-2 py-1">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span
+                class="rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em]"
+                :class="hintBadgeClass"
+              >
+                {{ hintBadgeLabel }}
+              </span>
+              <span class="truncate text-[10px] text-white/50">Help</span>
+            </div>
+            <button
+              type="button"
+              class="pointer-events-auto inline-flex h-5 w-5 items-center justify-center rounded-full text-white/65 transition hover:bg-white/12 hover:text-white"
+              aria-label="Collapse help hint"
+              @click="isHintCollapsed = true"
             >
-              {{ hintBadgeLabel }}
-            </span>
-            <span class="truncate text-[11px] text-white/65">Help</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3.5 w-3.5">
+                <path d="M4.22 4.22a.75.75 0 0 1 1.06 0L8 6.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L9.06 8l2.72 2.72a.75.75 0 1 1-1.06 1.06L8 9.06l-2.72 2.72a.75.75 0 1 1-1.06-1.06L6.94 8 4.22 5.28a.75.75 0 0 1 0-1.06Z" />
+              </svg>
+            </button>
           </div>
+          <p class="px-2 py-1.5 text-[11px] leading-4 text-white/72">
+            {{ interactionHint }}
+          </p>
         </div>
-        <p class="px-2.5 py-2 text-xs leading-4.5 text-white/90">
-          {{ interactionHint }}
-        </p>
       </div>
+      <div
+        v-else
+        class="pointer-events-none absolute top-2 left-2 z-10"
+      >
+        <button
+          type="button"
+          class="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-stone-950/28 text-white/72 shadow-sm backdrop-blur-sm transition hover:bg-stone-950/42 hover:text-white"
+          aria-label="Show help hint"
+          title="Show help hint"
+          @click="isHintCollapsed = false"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3.5 w-3.5 text-white/70">
+            <path d="M8 1.25a6.75 6.75 0 1 0 0 13.5A6.75 6.75 0 0 0 8 1.25Zm0 9.85a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Zm1.19-3.67-.4.27c-.47.32-.64.55-.64 1.1v.3a.75.75 0 0 1-1.5 0v-.3c0-1.12.49-1.77 1.3-2.31l.4-.27c.44-.29.65-.58.65-.97 0-.6-.5-1.02-1.2-1.02-.67 0-1.17.33-1.5.97a.75.75 0 0 1-1.34-.67c.58-1.16 1.61-1.8 2.84-1.8 1.55 0 2.7.97 2.7 2.52 0 .94-.47 1.63-1.31 2.18Z" />
+          </svg>
+        </button>
+      </div>
+
     </div>
     <svg
       class="absolute top-0 left-0 pointer-events-none"
@@ -183,7 +214,7 @@ const {
   onContourCommitted: (contour) => commitContour(contour),
 });
 
-const isHintCollapsed = computed(() => userStore.settings.imageLabelerHintCollapsed);
+const isHintCollapsed = ref(true);
 
 const hintBadgeLabel = computed(() => {
   if (interactionHint.value === 'Release to finish crop') return 'Cropping';

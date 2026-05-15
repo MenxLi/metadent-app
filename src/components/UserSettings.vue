@@ -20,7 +20,7 @@ const userStore = useUserStore()
 const imageDir = ref(userStore.settings.imageDir)
 const metaDir = ref(userStore.settings.metaDir)
 const loadNextGoToUnlabeled = ref(userStore.settings.loadNextGoToUnlabeled)
-const showImageLabelerHelp = ref(!userStore.settings.imageLabelerHintCollapsed)
+const showImageLabelerHint = ref(userStore.settings.showImageLabelerHint)
 const enableAIAutoGen = ref(userStore.settings.enableAIAutoGen)
 const aiBackendUrl = ref(userStore.settings.aiBackendUrl)
 const aiBackendToken = ref(userStore.settings.aiBackendToken)
@@ -31,7 +31,7 @@ watch(showWindow, () => {
     imageDir.value = userStore.settings.imageDir
     metaDir.value = userStore.settings.metaDir
     loadNextGoToUnlabeled.value = userStore.settings.loadNextGoToUnlabeled
-    showImageLabelerHelp.value = !userStore.settings.imageLabelerHintCollapsed
+    showImageLabelerHint.value = userStore.settings.showImageLabelerHint
     enableAIAutoGen.value = userStore.settings.enableAIAutoGen
     aiBackendUrl.value = userStore.settings.aiBackendUrl
     aiBackendToken.value = userStore.settings.aiBackendToken
@@ -56,7 +56,7 @@ function saveSettings() {
   userStore.settings.aiBackendUrl = aiBackendUrl.value
   userStore.settings.aiBackendToken = aiBackendToken.value
   userStore.settings.loadNextGoToUnlabeled = loadNextGoToUnlabeled.value;
-  userStore.settings.imageLabelerHintCollapsed = !showImageLabelerHelp.value;
+  userStore.settings.showImageLabelerHint = showImageLabelerHint.value;
   userStore.settings.aiFeatureSet = { ...aiFeatureSet.value }
   showWindow.value = false
 
@@ -106,12 +106,12 @@ function saveSettings() {
       </div>
       <div class="flex items-center gap-2">
         <input
-          v-model="showImageLabelerHelp"
+          v-model="showImageLabelerHint"
           type="checkbox"
-          id="showImageLabelerHelp"
+          id="showImageLabelerHint"
           class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
         />
-        <label for="showImageLabelerHelp" class="text-sm font-medium text-gray-700">
+        <label for="showImageLabelerHint" class="text-sm font-medium text-gray-700">
           Show image labeler help overlay
         </label>
       </div>

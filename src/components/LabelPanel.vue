@@ -252,13 +252,15 @@
       <div class="relative" v-if="dataStore.activeDataItem && dataStore.activeDataLabel">
         <button
           @click.stop="hideContours = !hideContours"
-          class="absolute top-2 right-2 z-10 bg-white bg-opacity-80 text-sm px-2 py-1 rounded shadow hover:bg-opacity-100 pointer-events-auto opacity-75"
+          :aria-label="hideContours ? 'Show contours' : 'Hide contours'"
+          :title="hideContours ? 'Show contours' : 'Hide contours'"
+          class="absolute top-2 right-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-stone-950/28 text-white/72 shadow-sm backdrop-blur-sm transition hover:bg-stone-950/42 hover:text-white pointer-events-auto"
         >
-          <svg v-if="!hideContours" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" >
+          <svg v-if="!hideContours" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" >
             <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
             <circle cx="12" cy="12" r="3" />
           </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" >
+          <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" >
             <path d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-7-11-7a21.3 21.3 0 015.341-5.986m4.086-1.587A9.953 9.953 0 0112 5c7 0 11 7 11 7a21.3 21.3 0 01-3.752 4.834M3 3l18 18" />
           </svg>
         </button>

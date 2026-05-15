@@ -14,7 +14,7 @@ interface UserSettings {
   imageDir: string;
   metaDir: string;
   loadNextGoToUnlabeled: boolean;
-  imageLabelerHintCollapsed: boolean;
+  showImageLabelerHint: boolean;
   enableAIAutoGen: boolean;
   aiBackendUrl: string;
   aiBackendToken: string;
@@ -33,7 +33,7 @@ export const useUserStore = defineStore('UserInfo', () => {
       imageDir: "public/images/",
       metaDir: "public/meta/",
       loadNextGoToUnlabeled: true,
-      imageLabelerHintCollapsed: true,
+      showImageLabelerHint: true,
       enableAIAutoGen: false,
       aiBackendUrl: "",
       aiBackendToken: "",
