@@ -48,7 +48,7 @@
       </aside>
 
       <!-- Right: Business area -->
-      <main class="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
+      <main class="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
         <InfoPanel></InfoPanel>
         <LabelPanel></LabelPanel>
       </main>
