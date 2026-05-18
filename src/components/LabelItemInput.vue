@@ -38,7 +38,7 @@ function deleteLabel() {
 <template>
   <div
     :class="
-      'flex items-center gap-4 text-gray-700 px-4 py-2 rounded-xl shadow-md' +
+      'flex items-center gap-4 text-gray-700 px-4 py-2 rounded-xl shadow-sm' +
       (model.id === activeContourId ? ' bg-cyan-50' : ' bg-white')"
     @click="$emit('select', model.id)"
   >

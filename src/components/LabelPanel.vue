@@ -293,7 +293,7 @@
       }"
     ></DescInput>
 
-    <div v-if="dataStore.activeDataItem && dataStore.activeDataLabel" class="flex flex-col gap-4">
+    <div v-if="dataStore.activeDataItem && dataStore.activeDataLabel" class="flex flex-col gap-3">
       <template
         v-for="(label, index) in dataStore.activeDataLabel.items" :key="label.id"
       >
