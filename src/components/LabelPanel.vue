@@ -6,7 +6,7 @@
   import { useUiStateStore } from '@/stores/uistate';
   import { useUserStore } from '@/stores/user';
   import DescInput from './DescInput.vue';
-  import { AIBackendCalls, type DataLabel, type LabelItem, FileLabelStatus } from '@/api';
+  import { AIService, type DataLabel, type LabelItem, FileLabelStatus } from '@/api';
 
   const dataStore = useDataStore();
   const uiStateStore = useUiStateStore();
@@ -108,7 +108,7 @@
     context.items = context.items.filter(item => item.id !== payload.label.id);
 
     try {
-      const description = await new AIBackendCalls().regionDescription(
+      const description = await new AIService().regionDescription(
         imageId,
         payload.label.contours,
         context

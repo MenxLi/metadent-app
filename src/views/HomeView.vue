@@ -7,6 +7,7 @@
   import IndexPanel from '@/components/IndexPanel.vue';
   import TopBar from '@/components/TopBar.vue';
   import LabelPanel from '@/components/LabelPanel.vue';
+  import ChatPanel from '@/components/ChatPanel.vue';
 
   const router = useRouter()
   const userStore = useUserStore()
@@ -47,11 +48,16 @@
         <IndexPanel></IndexPanel>
       </aside>
 
-      <!-- Right: Business area -->
-      <main class="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
-        <InfoPanel></InfoPanel>
-        <LabelPanel></LabelPanel>
-      </main>
+      <div class="flex-1 min-w-0 p-4 flex flex-col xl:flex-row gap-4 overflow-hidden">
+        <main class="flex-1 min-w-0 overflow-y-auto flex flex-col gap-4">
+          <InfoPanel></InfoPanel>
+          <LabelPanel></LabelPanel>
+        </main>
+
+        <aside v-if="userStore.settings.aiFeatureSet.showChatPanel" class="xl:w-[24rem] xl:min-w-[24rem] overflow-y-auto">
+          <ChatPanel></ChatPanel>
+        </aside>
+      </div>
     </div>
   </div>
 </template>}

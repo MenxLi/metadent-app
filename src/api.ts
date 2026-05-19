@@ -1,5 +1,6 @@
 import Connector from '@/lfss';
 import type { Config } from '@/lfss';
+import { OpenAIChatClient, type AIChatRequest } from './openai-client';
 import { useUserStore } from '@/stores/user'
 import { useUiStateStore } from './stores/uistate';
 import { to_snake_case_obj } from './utils';
@@ -438,7 +439,10 @@ interface AIGenerateResponse {
   output: string;
 }
 
-export class AIBackendCalls {
+export type { AIChatAgent, AIChatImageInput, AIChatMessage, AIChatRequest, AIChatRole } from './openai-client';
+
+export class AIService {
+  readonly CHAT_MODEL = 'iovlm';
 
   getBaseUrl(): string {
     const userStore = useUserStore()
@@ -451,6 +455,15 @@ export class AIBackendCalls {
       throw new Error('AI backend URL not configured. Switched to manual input.')
     }
     return settings.aiBackendUrl.replace(/\/$/, '')
+  }
+
+  getOpenAIClient(): OpenAIChatClient {
+    const userStore = useUserStore()
+    return new OpenAIChatClient({
+      apiKey: userStore.settings.aiBackendToken,
+      baseURL: `${this.getBaseUrl()}/proxy/openai-v1`,
+      model: this.CHAT_MODEL,
+    })
   }
 
   async fetch(route: string, payload: any): Promise<AIGenerateResponse> {
@@ -501,6 +514,21 @@ export class AIBackendCalls {
     }
     const response = await this.fetch('region-description', { image_id, contours, context });
     return response.output || "";
+  }
+
+  public async chatWithAgent(request: AIChatRequest): Promise<string> {
+    try {
+      return await this.getOpenAIClient().complete(request);
+    } catch (err) {
+      console.error('AI image chat failed:', err)
+      useUiStateStore().msg.set(
+        'AI image chat failed: ' + `<span style="color: red;">${err instanceof Error ? err.message : String(err)}</span>` +
+        ". <br>Please check the backend URL and token configuration, or check the backend server status. " +
+        "[<a href=\"#\" data-ui-action=\"disable-ai-autogen\">disable AI features</a>]",
+        'warning'
+      );
+      throw err
+    }
   }
 
 }

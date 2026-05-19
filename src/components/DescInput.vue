@@ -42,7 +42,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useDataStore } from '@/stores/data';
 import { useComponentStore } from '@/stores/component';
-import { AIBackendCalls } from '@/api';
+import { AIService } from '@/api';
 import { nextTick } from 'vue';
 
 const modelValue = defineModel('modelValue', {
@@ -97,7 +97,7 @@ async function autoGenerateOverallDescription() {
 
   fetching.value = true
   try {
-    const res = await new AIBackendCalls().overallDescription(image_id);
+    const res = await new AIService().overallDescription(image_id);
     if (res) {
       const description = res;
       console.log('Auto-complete response:', res)

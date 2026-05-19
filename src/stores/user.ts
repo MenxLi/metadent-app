@@ -8,6 +8,7 @@ import { useUiStateStore } from './uistate'
 interface UserSettingsAiFeatureSet {
   overallDescriptionOnLoad: boolean;
   regionDescriptionOnDraw: boolean;
+  showChatPanel: boolean;
 }
 
 interface UserSettings {
@@ -40,6 +41,7 @@ export const useUserStore = defineStore('UserInfo', () => {
       aiFeatureSet: {
         overallDescriptionOnLoad: true,
         regionDescriptionOnDraw: true,
+        showChatPanel: true,
       }
     }
   }
