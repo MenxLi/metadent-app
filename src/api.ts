@@ -439,10 +439,10 @@ interface AIGenerateResponse {
   output: string;
 }
 
-export type { AIChatAgent, AIChatImageInput, AIChatMessage, AIChatRequest, AIChatRole } from './openai-client';
+export type { AIChatImageInput, AIChatMessage, AIChatRequest, AIChatRole } from './openai-client';
 
 export class AIService {
-  readonly CHAT_MODEL = 'iovlm';
+  readonly DEFAULT_CHAT_MODEL = 'iovlm';
 
   getBaseUrl(): string {
     const userStore = useUserStore()
@@ -462,8 +462,22 @@ export class AIService {
     return new OpenAIChatClient({
       apiKey: userStore.settings.aiBackendToken,
       baseURL: `${this.getBaseUrl()}/proxy/openai-v1`,
-      model: this.CHAT_MODEL,
+      model: userStore.settings.aiModelName || this.DEFAULT_CHAT_MODEL,
     })
+  }
+
+  public async listModels(): Promise<string[]> {
+    try {
+      return await this.getOpenAIClient().listModels()
+    } catch (err) {
+      console.error('AI model list failed:', err)
+      useUiStateStore().msg.set(
+        'Failed to load AI models: ' + `<span style="color: red;">${err instanceof Error ? err.message : String(err)}</span>` +
+        '. <br>Please check the backend URL and token configuration, or check the backend server status.',
+        'warning'
+      );
+      throw err
+    }
   }
 
   async fetch(route: string, payload: any): Promise<AIGenerateResponse> {

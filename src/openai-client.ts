@@ -12,16 +12,11 @@ export interface AIChatMessage {
   images?: AIChatImageInput[];
 }
 
-export interface AIChatAgent {
-  name?: string;
-  instructions?: string;
-}
-
 export interface AIChatRequest {
   message: string;
+  model?: string;
   conversation?: AIChatMessage[];
   systemPrompt?: string;
-  agent?: AIChatAgent;
   images?: AIChatImageInput[];
 }
 
@@ -70,16 +65,6 @@ export class OpenAIChatClient {
     return content
   }
 
-  private buildSystemPrompt(request: AIChatRequest): string {
-    const promptParts = [
-      request.systemPrompt ?? 'You are assisting with dental image labeling. Be precise, concise, and only answer from the visible image and provided labeling context. If the image does not support a claim, say so.',
-      request.agent?.name ? `Agent: ${request.agent.name}` : '',
-      request.agent?.instructions ? `Agent instructions: ${request.agent.instructions}` : '',
-    ].filter(Boolean)
-
-    return promptParts.join('\n')
-  }
-
   private getMessageText(content: string | null | Array<{ type?: string; text?: string }>): string {
     if (typeof content === 'string') {
       return content
@@ -93,6 +78,11 @@ export class OpenAIChatClient {
       .filter((item) => item.type === 'text' && typeof item.text === 'string')
       .map((item) => item.text ?? '')
       .join('\n')
+  }
+
+  async listModels(): Promise<string[]> {
+    const response = await this.client.models.list()
+    return response.data.map((model) => model.id)
   }
 
   async complete(request: AIChatRequest): Promise<string> {
@@ -111,16 +101,15 @@ export class OpenAIChatClient {
       content: this.buildUserContent(request.message, request.images),
     }
 
+    const messages = [
+      ...(request.systemPrompt ? [{ role: 'system' as const, content: request.systemPrompt }] : []),
+      ...historyMessages,
+      currentMessage,
+    ]
+
     const completion = await this.client.chat.completions.create({
-      model: this.model,
-      messages: [
-        {
-          role: 'system',
-          content: this.buildSystemPrompt(request),
-        },
-        ...historyMessages,
-        currentMessage,
-      ],
+      model: request.model ?? this.model,
+      messages,
     })
 
     return this.getMessageText(completion.choices[0]?.message?.content ?? null)

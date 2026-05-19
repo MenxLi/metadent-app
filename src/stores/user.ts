@@ -19,6 +19,7 @@ interface UserSettings {
   enableAIAutoGen: boolean;
   aiBackendUrl: string;
   aiBackendToken: string;
+  aiModelName: string;
   aiFeatureSet: UserSettingsAiFeatureSet;
 }
 
@@ -38,6 +39,7 @@ export const useUserStore = defineStore('UserInfo', () => {
       enableAIAutoGen: false,
       aiBackendUrl: "",
       aiBackendToken: "",
+      aiModelName: "",
       aiFeatureSet: {
         overallDescriptionOnLoad: true,
         regionDescriptionOnDraw: true,
