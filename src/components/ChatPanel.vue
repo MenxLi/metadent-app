@@ -199,8 +199,8 @@ function onEditDraftKeydown(event: KeyboardEvent, index: number) {
 </script>
 
 <template>
-	<section class="h-full min-h-96 rounded-lg bg-white shadow-md flex flex-col overflow-hidden">
-		<div class="border-b border-gray-200 px-4 py-3">
+	<section class="h-full min-h-96 bg-white flex flex-col overflow-hidden pt-2 pb-4">
+		<div class="border-b border-gray-200 px-4 py-2">
 			<div class="flex items-center justify-between gap-3">
 				<div>
 					<h2 class="text-sm font-semibold text-gray-900">Image Chat</h2>
@@ -215,12 +215,6 @@ function onEditDraftKeydown(event: KeyboardEvent, index: number) {
 					>
 						Clear
 					</button>
-					<span
-						class="rounded-full px-2.5 py-1 text-xs font-medium"
-						:class="hasAIConfig ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
-					>
-						{{ hasAIConfig ? 'Ready' : 'Setup needed' }}
-					</span>
 				</div>
 			</div>
 		</div>
@@ -280,7 +274,7 @@ function onEditDraftKeydown(event: KeyboardEvent, index: number) {
 						class="flex"
 						:class="message.role === 'user' ? 'justify-end' : 'justify-start'"
 					>
-						<div class="max-w-[90%] flex flex-col gap-1.5">
+						<div class="w-[90%] flex flex-col gap-1.5">
 							<div
 								v-if="editingIndex === index"
 								class="rounded-2xl border border-blue-200 bg-white p-2 shadow-sm"
@@ -294,14 +288,14 @@ function onEditDraftKeydown(event: KeyboardEvent, index: number) {
 								<div class="mt-2 flex justify-end gap-2">
 									<button
 										type="button"
-										class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+										class="rounded-md border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
 										@click="cancelEditMessage"
 									>
 										Cancel
 									</button>
 									<button
 										type="button"
-										class="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+										class="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 										:disabled="!editingDraft.trim()"
 										@click="saveEditedMessage(index)"
 									>
@@ -346,7 +340,7 @@ function onEditDraftKeydown(event: KeyboardEvent, index: number) {
 						v-for="question in suggestedQuestions"
 						:key="question"
 						type="button"
-						class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 text-left"
+						class="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 text-left"
 						:disabled="!canChat || isSubmitting"
 						@click="submitQuestion(question)"
 					>

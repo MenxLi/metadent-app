@@ -44,19 +44,19 @@
   <div class="w-full h-full flex flex-col bg-gray-100">
     <TopBar :userInfo="userStore.user" @logout="logout" />
     <div class="flex flex-1 overflow-hidden">
-      <aside class="w-1/3 max-w-lg bg-white p-4">
+      <aside class="w-1/3 max-w-lg bg-white p-4 shadow-md">
         <IndexPanel></IndexPanel>
       </aside>
 
-      <div class="flex-1 min-w-0 p-4 flex flex-col xl:flex-row gap-4 overflow-hidden">
-        <main class="flex-1 min-w-0 overflow-y-auto flex flex-col gap-4">
+      <div class="flex-1 min-w-0 p-0 flex flex-col xl:flex-row gap-0 overflow-hidden">
+        <main class="flex-1 min-w-0 overflow-y-auto flex flex-col gap-4 p-4">
           <InfoPanel></InfoPanel>
           <LabelPanel></LabelPanel>
         </main>
 
         <aside v-if="
               userStore.settings.enableAIAutoGen && userStore.settings.aiFeatureSet.showChatPanel
-            " class="xl:w-[24rem] xl:min-w-[24rem] overflow-y-auto">
+            " class="xl:w-[24rem] xl:min-w-[24rem] overflow-y-auto shadow-md">
           <ChatPanel></ChatPanel>
         </aside>
       </div>
