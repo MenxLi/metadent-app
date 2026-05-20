@@ -21,6 +21,56 @@ interface UserSettings {
   aiBackendToken: string;
   aiModelName: string;
   aiFeatureSet: UserSettingsAiFeatureSet;
+  aiChatPredefinedQueries: string[];
+}
+
+const DEFAULT_AI_CHAT_PREDEFINED_QUERIES = [
+  "Describe the image in detail, focusing on the visible content. Provide a comprehensive summary of the main elements in the image, all in one paragraph.",
+  "帮我详细描述一下这张图的内容，围绕图像内的可见内容进行介绍，全面总结画面主体内容，总结为一段话。",
+];
+
+function defaultSettings(): UserSettings {
+  return {
+    imageDir: "public/images/",
+    metaDir: "public/meta/",
+    loadNextGoToUnlabeled: true,
+    showImageLabelerHint: true,
+    enableAIAutoGen: false,
+    aiBackendUrl: "",
+    aiBackendToken: "",
+    aiModelName: "",
+    aiFeatureSet: {
+      overallDescriptionOnLoad: true,
+      regionDescriptionOnDraw: true,
+      showChatPanel: true,
+    },
+    aiChatPredefinedQueries: [...DEFAULT_AI_CHAT_PREDEFINED_QUERIES],
+  }
+}
+
+function sanitizeAiChatPredefinedQueries(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [...DEFAULT_AI_CHAT_PREDEFINED_QUERIES];
+  }
+
+  return [...new Set(value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean))]
+}
+
+function normalizeSettings(value?: Partial<UserSettings>): UserSettings {
+  const defaults = defaultSettings()
+
+  return {
+    ...defaults,
+    ...value,
+    aiFeatureSet: {
+      ...defaults.aiFeatureSet,
+      ...(value?.aiFeatureSet ?? {}),
+    },
+    aiChatPredefinedQueries: sanitizeAiChatPredefinedQueries(value?.aiChatPredefinedQueries),
+  }
 }
 
 export const useUserStore = defineStore('UserInfo', () => {
@@ -28,25 +78,7 @@ export const useUserStore = defineStore('UserInfo', () => {
   const hashkey = ref("");
   const backend = new BackendCalls();
   const user: Ref<UserInfo | null> = ref(null);
-  const settings = ref(defaultSettings());
-
-  function defaultSettings(): UserSettings {
-    return {
-      imageDir: "public/images/",
-      metaDir: "public/meta/",
-      loadNextGoToUnlabeled: true,
-      showImageLabelerHint: true,
-      enableAIAutoGen: false,
-      aiBackendUrl: "",
-      aiBackendToken: "",
-      aiModelName: "",
-      aiFeatureSet: {
-        overallDescriptionOnLoad: true,
-        regionDescriptionOnDraw: true,
-        showChatPanel: true,
-      }
-    }
-  }
+  const settings = ref(normalizeSettings());
 
   function configureOverride() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -107,6 +139,10 @@ export const useUserStore = defineStore('UserInfo', () => {
     settings.value.enableAIAutoGen = false
   }
 
+  function updateAiChatPredefinedQueries(queries: string[]) {
+    settings.value.aiChatPredefinedQueries = sanitizeAiChatPredefinedQueries(queries)
+  }
+
   /**
    * Verify if the user is logged in, if not, redirect to login page
    */
@@ -127,9 +163,13 @@ export const useUserStore = defineStore('UserInfo', () => {
     hashkey, user, login, logout, backendUrl,
     configureOverride, verifyLoginRedirect, backend, settings,
     disableAIAutoGen,
+    updateAiChatPredefinedQueries,
   }
 }, {
   persist: {
     key: "UserInfo",
+    afterHydrate: ({ store }) => {
+      store.settings = normalizeSettings(store.settings)
+    },
   }
 })

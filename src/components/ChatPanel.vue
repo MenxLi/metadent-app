@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { AIService } from '@/api'
 import type { AIChatMessage } from '@/openai-client'
+import ChatPanelQueries from '@/components/ChatPanelQueries.vue'
 import { useDataStore } from '@/stores/data'
 import { useUserStore } from '@/stores/user'
 
@@ -27,10 +28,12 @@ const hasAIConfig = computed(() => {
 	return settings.enableAIAutoGen && settings.aiFeatureSet.showChatPanel && Boolean(settings.aiBackendUrl?.trim()) && Boolean(settings.aiBackendToken?.trim())
 })
 const canChat = computed(() => hasAIConfig.value && Boolean(userStore.settings.aiModelName))
-
-const suggestedQuestions = [
-  '帮我详细描述一下这张图的内容，围绕图像内的可见内容进行介绍，全面总结画面主体内容，总结为一段话',
-]
+const predefinedQueries = computed({
+	get: () => userStore.settings.aiChatPredefinedQueries,
+	set: (queries: string[]) => {
+		userStore.updateAiChatPredefinedQueries(queries)
+	},
+})
 
 function resetConversation() {
 	draft.value = ''
@@ -335,18 +338,11 @@ function onEditDraftKeydown(event: KeyboardEvent, index: number) {
 			</div>
 
 			<div class="border-t border-gray-200 bg-white px-4 py-3 flex flex-col gap-3">
-				<div class="flex flex-wrap gap-2">
-					<button
-						v-for="question in suggestedQuestions"
-						:key="question"
-						type="button"
-						class="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 text-left"
-						:disabled="!canChat || isSubmitting"
-						@click="submitQuestion(question)"
-					>
-						{{ question }}
-					</button>
-				</div>
+				<ChatPanelQueries
+					v-model="predefinedQueries"
+					:disabled="isSubmitting"
+					@submit="submitQuestion"
+				/>
 
 				<form class="flex flex-col gap-2" @submit.prevent="submitQuestion()">
 					<textarea
