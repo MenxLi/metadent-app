@@ -24,7 +24,7 @@ const editingDraft = ref('')
 const hasActiveImage = computed(() => Boolean(dataStore.activeDataItem?.imageUrl))
 const hasAIConfig = computed(() => {
 	const settings = userStore.settings
-	return settings.enableAIAutoGen && Boolean(settings.aiBackendUrl?.trim()) && Boolean(settings.aiBackendToken?.trim())
+	return settings.enableAIAutoGen && settings.aiFeatureSet.showChatPanel && Boolean(settings.aiBackendUrl?.trim()) && Boolean(settings.aiBackendToken?.trim())
 })
 const canChat = computed(() => hasAIConfig.value && Boolean(userStore.settings.aiModelName))
 
@@ -54,13 +54,14 @@ watch(() => messages.value.length, () => {
 watch(
 	() => [
 		userStore.settings.enableAIAutoGen,
+		userStore.settings.aiFeatureSet.showChatPanel,
 		userStore.settings.aiBackendUrl,
 		userStore.settings.aiBackendToken,
 	] as const,
-	async ([enabled, backendUrl, backendToken]) => {
+	async ([enabled, showChatPanel, backendUrl, backendToken]) => {
 		const requestId = ++modelRequestId
 		availableModels.value = []
-		if (!enabled || !backendUrl.trim() || !backendToken.trim()) {
+		if (!enabled || !showChatPanel || !backendUrl.trim() || !backendToken.trim()) {
 			userStore.settings.aiModelName = ''
 			return
 		}

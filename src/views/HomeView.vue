@@ -54,7 +54,9 @@
           <LabelPanel></LabelPanel>
         </main>
 
-        <aside v-if="userStore.settings.aiFeatureSet.showChatPanel" class="xl:w-[24rem] xl:min-w-[24rem] overflow-y-auto">
+        <aside v-if="
+              userStore.settings.enableAIAutoGen && userStore.settings.aiFeatureSet.showChatPanel
+            " class="xl:w-[24rem] xl:min-w-[24rem] overflow-y-auto">
           <ChatPanel></ChatPanel>
         </aside>
       </div>
