@@ -1,6 +1,8 @@
 <template>
   <div
+    ref="containerRef"
     class="relative"
+    tabindex="0"
     :class="canvasCursorClass"
 
     @mousedown="startDrawing"
@@ -91,6 +93,8 @@
             fill-rule="evenodd"
             class="pointer-events-auto"
             @click.left.stop="contourItem.selectable && maybeActivateLabel(contourItem.labelId)"
+            @dblclick.left.stop="requestContourRefine(contourItem.labelId)"
+            @pointerdown="focusCanvas"
             @touchend.stop.prevent="contourItem.selectable && maybeActivateLabel(contourItem.labelId)"
             @mouseenter="contourItem.isActive && setHoveredPolygon(contourItem.labelId, contourItem.contourIndex)"
             @mouseleave="contourItem.isActive && clearHoveredPolygon(contourItem.labelId, contourItem.contourIndex)"
@@ -136,6 +140,8 @@ const emit = defineEmits<{
   (e: 'update:crop', value: CropRect | null): void;
   (e: 'update:activeLabel', value: string): void;
   (e: 'contour-committed', value: { label: LabelItem; labels: LabelItem[] }): void;
+  (e: 'contour-dbclick', value: { label: LabelItem; labels: LabelItem[] }): void;
+  (e: 'restore-contour-backup'): void;
 }>();
 
 type HoveredPolygonState = { labelId: string; contourIndex: number };
@@ -150,6 +156,7 @@ type DisplayContour = {
 };
 
 const imageRef = ref<HTMLImageElement | null>(null);
+const containerRef = ref<HTMLDivElement | null>(null);
 
 watch(
   () => props.labels,
@@ -328,10 +335,12 @@ watch(() => props.activeLabel, (activeLabel) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleDeleteHoveredPolygon);
+  window.addEventListener('keydown', handleRestoreContourBackup);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleDeleteHoveredPolygon);
+  window.removeEventListener('keydown', handleRestoreContourBackup);
 });
 
 function onImageLoad() {
@@ -378,6 +387,24 @@ function commitContour(contour: Point[]) {
   if (label) {
     emit('contour-committed', { label, labels: updatedLabels });
   }
+}
+
+function requestContourRefine(labelId: string) {
+  const label = props.labels.find(item => item.id === labelId);
+  if (!label || label.contours.length === 0) return;
+  emit('contour-dbclick', { label, labels: props.labels });
+}
+
+function focusCanvas() {
+  containerRef.value?.focus();
+}
+
+function handleRestoreContourBackup(event: KeyboardEvent) {
+  const activeElement = document.activeElement as HTMLElement | null;
+  if (activeElement !== containerRef.value) return;
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
+  event.preventDefault();
+  emit('restore-contour-backup');
 }
 </script>
 

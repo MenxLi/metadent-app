@@ -8,6 +8,7 @@ import { useUiStateStore } from './uistate'
 interface UserSettingsAiFeatureSet {
   overallDescriptionOnLoad: boolean;
   regionDescriptionOnDraw: boolean;
+  regionRefineOnDoubleClick: boolean;
   enableChat: boolean;
 }
 
@@ -42,6 +43,7 @@ function defaultSettings(): UserSettings {
     aiFeatureSet: {
       overallDescriptionOnLoad: true,
       regionDescriptionOnDraw: true,
+      regionRefineOnDoubleClick: true,
       enableChat: true,
     },
     aiChatPredefinedQueries: [...DEFAULT_AI_CHAT_PREDEFINED_QUERIES],
