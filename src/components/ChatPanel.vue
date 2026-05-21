@@ -22,7 +22,8 @@ interface ChatConversationState {
 	isSubmitting: boolean
 	messages: AIChatMessage[]
 	editingIndex: number | null
-	editingDraft: string
+  editingDraft: string,
+  timeVisit: number
 }
 
 const conversationStates = reactive<Record<string, ChatConversationState>>({})
@@ -49,6 +50,7 @@ function createConversationState(): ChatConversationState {
 		messages: [{ role: 'assistant', content: INITIAL_ASSISTANT_MESSAGE }],
 		editingIndex: null,
 		editingDraft: '',
+    timeVisit: Date.now(),
 	}
 }
 
@@ -62,11 +64,25 @@ function resetConversation() {
 }
 
 watch(activeFileName, (fileName) => {
-	if (!fileName || conversationStates[fileName]) {
+	if (!fileName) {
 		return
 	}
-
+  if (conversationStates[fileName]) {
+    conversationStates[fileName].timeVisit = Date.now()
+    return
+  }
 	conversationStates[fileName] = createConversationState()
+
+  const MAX_CONVERSATIONS = 64
+  if (Object.keys(conversationStates).length > MAX_CONVERSATIONS) {
+		// Keep in-flight conversations pinned so pending replies are not lost.
+		const sortedKeys = Object.keys(conversationStates)
+			.filter((key) => !conversationStates[key]!.isSubmitting)
+			.sort((a, b) => conversationStates[a]!.timeVisit - conversationStates[b]!.timeVisit)
+		for (let i = 0; i < Math.floor(MAX_CONVERSATIONS / 3) && i < sortedKeys.length; i++) {
+			delete conversationStates[sortedKeys[i]!]
+		}
+  }
 }, { immediate: true })
 
 watch(() => [activeFileName.value, activeConversation.value?.messages.length ?? 0] as const, () => {
