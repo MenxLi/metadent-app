@@ -378,7 +378,7 @@ function commitContour(contour: Point[]) {
 
   const updatedLabels: LabelItem[] = props.labels.map(label =>
     label.id === props.activeLabel
-      ? { ...label, contours: [...label.contours, contour] }
+      ? { ...label, contours: [...label.contours, contour], contour_refined: false }
       : label
   );
   emit('update:labels', updatedLabels);
