@@ -17,7 +17,7 @@ async function handleLogin() {
 
   try {
     if (
-      userStore.settings.enableAIAutoGen &&
+      userStore.settings.enableAIHelpers &&
       !userStore.settings.aiBackendUrl
     ) {
       error.value = 'AI backend URL is required when AI auto generation is enabled.'

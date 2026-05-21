@@ -26,7 +26,7 @@ const onInfoMessageClick = (event: MouseEvent) => {
 
   if (action === 'disable-ai-autogen') {
     event.preventDefault();
-    userStore.disableAIAutoGen();
+    userStore.disableAIHelpers();
     uiStateStore.msg.set('AI auto-generation has been disabled. You can re-enable it in User Settings.', 'info');
   }
 }

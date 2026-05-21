@@ -21,7 +21,7 @@ const imageDir = ref(userStore.settings.imageDir)
 const metaDir = ref(userStore.settings.metaDir)
 const loadNextGoToUnlabeled = ref(userStore.settings.loadNextGoToUnlabeled)
 const showImageLabelerHint = ref(userStore.settings.showImageLabelerHint)
-const enableAIAutoGen = ref(userStore.settings.enableAIAutoGen)
+const enableAIHelpers = ref(userStore.settings.enableAIHelpers)
 const aiBackendUrl = ref(userStore.settings.aiBackendUrl)
 const aiBackendToken = ref(userStore.settings.aiBackendToken)
 const aiFeatureSet = ref({ ...userStore.settings.aiFeatureSet })
@@ -32,15 +32,15 @@ watch(showWindow, () => {
     metaDir.value = userStore.settings.metaDir
     loadNextGoToUnlabeled.value = userStore.settings.loadNextGoToUnlabeled
     showImageLabelerHint.value = userStore.settings.showImageLabelerHint
-    enableAIAutoGen.value = userStore.settings.enableAIAutoGen
+    enableAIHelpers.value = userStore.settings.enableAIHelpers
     aiBackendUrl.value = userStore.settings.aiBackendUrl
     aiBackendToken.value = userStore.settings.aiBackendToken
     aiFeatureSet.value = { ...userStore.settings.aiFeatureSet }
 })
 
 function saveSettings() {
-  if (enableAIAutoGen.value && !aiBackendUrl.value.trim()) {
-    userStore.settings.enableAIAutoGen = false
+  if (enableAIHelpers.value && !aiBackendUrl.value.trim()) {
+    userStore.settings.enableAIHelpers = false
     alert('AI backend URL is required when AI auto generation is enabled.')
     return
   }
@@ -52,7 +52,7 @@ function saveSettings() {
 
   userStore.settings.imageDir = imageDir.value
   userStore.settings.metaDir = metaDir.value
-  userStore.settings.enableAIAutoGen = enableAIAutoGen.value
+  userStore.settings.enableAIHelpers = enableAIHelpers.value
   userStore.settings.aiBackendUrl = aiBackendUrl.value
   userStore.settings.aiBackendToken = aiBackendToken.value
   userStore.settings.loadNextGoToUnlabeled = loadNextGoToUnlabeled.value;
@@ -120,12 +120,12 @@ function saveSettings() {
         <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
           <input
           type="checkbox" class="w-4 h-4"
-          v-model="enableAIAutoGen" />
+          v-model="enableAIHelpers" />
           Enable AI assisted labeling (experimental)
         </label>
       </div>
 
-      <div v-if="enableAIAutoGen" class="flex flex-col gap-1.5">
+      <div v-if="enableAIHelpers" class="flex flex-col gap-1.5">
         <div class="flex flex-col gap-0.5">
           <label class="text-sm font-medium text-gray-700">
             AI Backend Endpoint
@@ -170,8 +170,8 @@ function saveSettings() {
             <label class="flex items-center gap-2 text-gray-700">
               <input
                 type="checkbox" class="w-4 h-4"
-                v-model="aiFeatureSet.showChatPanel" />
-              Show chat panel
+                v-model="aiFeatureSet.enableChat" />
+              Chat with AI assistant
             </label>
           </div>
         </div>

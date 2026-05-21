@@ -8,7 +8,7 @@ import { useUiStateStore } from './uistate'
 interface UserSettingsAiFeatureSet {
   overallDescriptionOnLoad: boolean;
   regionDescriptionOnDraw: boolean;
-  showChatPanel: boolean;
+  enableChat: boolean;
 }
 
 interface UserSettings {
@@ -16,7 +16,7 @@ interface UserSettings {
   metaDir: string;
   loadNextGoToUnlabeled: boolean;
   showImageLabelerHint: boolean;
-  enableAIAutoGen: boolean;
+  enableAIHelpers: boolean;
   aiBackendUrl: string;
   aiBackendToken: string;
   aiModelName: string;
@@ -35,14 +35,14 @@ function defaultSettings(): UserSettings {
     metaDir: "public/meta/",
     loadNextGoToUnlabeled: true,
     showImageLabelerHint: true,
-    enableAIAutoGen: false,
+    enableAIHelpers: false,
     aiBackendUrl: "",
     aiBackendToken: "",
     aiModelName: "",
     aiFeatureSet: {
       overallDescriptionOnLoad: true,
       regionDescriptionOnDraw: true,
-      showChatPanel: true,
+      enableChat: true,
     },
     aiChatPredefinedQueries: [...DEFAULT_AI_CHAT_PREDEFINED_QUERIES],
   }
@@ -135,8 +135,8 @@ export const useUserStore = defineStore('UserInfo', () => {
   }
 
 
-  function disableAIAutoGen() {
-    settings.value.enableAIAutoGen = false
+  function disableAIHelpers() {
+    settings.value.enableAIHelpers = false
   }
 
   function updateAiChatPredefinedQueries(queries: string[]) {
@@ -162,7 +162,7 @@ export const useUserStore = defineStore('UserInfo', () => {
   return {
     hashkey, user, login, logout, backendUrl,
     configureOverride, verifyLoginRedirect, backend, settings,
-    disableAIAutoGen,
+    disableAIHelpers,
     updateAiChatPredefinedQueries,
   }
 }, {

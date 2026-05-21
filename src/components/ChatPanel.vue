@@ -31,7 +31,7 @@ const conversationStates = reactive<Record<string, ChatConversationState>>({})
 const hasActiveImage = computed(() => Boolean(dataStore.activeDataItem?.imageUrl))
 const hasAIConfig = computed(() => {
 	const settings = userStore.settings
-	return settings.enableAIAutoGen && settings.aiFeatureSet.showChatPanel && Boolean(settings.aiBackendUrl?.trim()) && Boolean(settings.aiBackendToken?.trim())
+	return settings.enableAIHelpers && settings.aiFeatureSet.enableChat && Boolean(settings.aiBackendUrl?.trim()) && Boolean(settings.aiBackendToken?.trim())
 })
 const canChat = computed(() => hasAIConfig.value && Boolean(userStore.settings.aiModelName))
 const activeFileName = computed(() => dataStore.activeDataItem?.fileName ?? '')
@@ -93,17 +93,17 @@ watch(() => [activeFileName.value, activeConversation.value?.messages.length ?? 
 
 watch(
 	() => [
-		userStore.settings.enableAIAutoGen,
-		userStore.settings.aiFeatureSet.showChatPanel,
+		userStore.settings.enableAIHelpers,
+		userStore.settings.aiFeatureSet.enableChat,
 		userStore.settings.aiBackendUrl,
 		userStore.settings.aiBackendToken,
 	] as const,
-	async ([enabled, showChatPanel, backendUrl, backendToken]) => {
+	async ([enabled, enableChat, backendUrl, backendToken]) => {
 		const requestId = ++modelRequestId
 		const normalizedBackendUrl = backendUrl?.trim() ?? ''
 		const normalizedBackendToken = backendToken?.trim() ?? ''
 		availableModels.value = []
-		if (!enabled || !showChatPanel || !normalizedBackendUrl || !normalizedBackendToken) {
+		if (!enabled || !enableChat || !normalizedBackendUrl || !normalizedBackendToken) {
 			userStore.settings.aiModelName = ''
 			return
 		}

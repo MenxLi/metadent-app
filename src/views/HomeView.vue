@@ -55,7 +55,7 @@
         </main>
 
         <aside v-if="
-              userStore.settings.enableAIAutoGen && userStore.settings.aiFeatureSet.showChatPanel
+              userStore.settings.enableAIHelpers && userStore.settings.aiFeatureSet.enableChat
             " class="xl:w-[24rem] xl:min-w-[24rem] overflow-y-auto shadow-md">
           <ChatPanel></ChatPanel>
         </aside>

@@ -447,11 +447,11 @@ export class AIService {
   getBaseUrl(): string {
     const userStore = useUserStore()
     const settings = userStore.settings
-    if (!settings.enableAIAutoGen) {
+    if (!settings.enableAIHelpers) {
       throw new Error('AI auto generation disabled. Switched to manual input.')
     }
     if (!settings.aiBackendUrl) {
-      userStore.disableAIAutoGen()
+      userStore.disableAIHelpers()
       throw new Error('AI backend URL not configured. Switched to manual input.')
     }
     return settings.aiBackendUrl.replace(/\/$/, '')
