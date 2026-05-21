@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { AIService } from '@/api'
 import type { AIChatMessage } from '@/openai-client'
 import ChatPanelQueries from '@/components/ChatPanelQueries.vue'
@@ -13,14 +13,19 @@ const userStore = useUserStore()
 const aiService = new AIService()
 let modelRequestId = 0
 
-const draft = ref('')
-const isSubmitting = ref(false)
 const isLoadingModels = ref(false)
-const messages = ref<AIChatMessage[]>([])
 const messageList = ref<HTMLDivElement | null>(null)
 const availableModels = ref<string[]>([])
-const editingIndex = ref<number | null>(null)
-const editingDraft = ref('')
+
+interface ChatConversationState {
+	draft: string
+	isSubmitting: boolean
+	messages: AIChatMessage[]
+	editingIndex: number | null
+	editingDraft: string
+}
+
+const conversationStates = reactive<Record<string, ChatConversationState>>({})
 
 const hasActiveImage = computed(() => Boolean(dataStore.activeDataItem?.imageUrl))
 const hasAIConfig = computed(() => {
@@ -28,6 +33,8 @@ const hasAIConfig = computed(() => {
 	return settings.enableAIAutoGen && settings.aiFeatureSet.showChatPanel && Boolean(settings.aiBackendUrl?.trim()) && Boolean(settings.aiBackendToken?.trim())
 })
 const canChat = computed(() => hasAIConfig.value && Boolean(userStore.settings.aiModelName))
+const activeFileName = computed(() => dataStore.activeDataItem?.fileName ?? '')
+const activeConversation = computed(() => conversationStates[activeFileName.value] ?? null)
 const predefinedQueries = computed({
 	get: () => userStore.settings.aiChatPredefinedQueries,
 	set: (queries: string[]) => {
@@ -35,20 +42,34 @@ const predefinedQueries = computed({
 	},
 })
 
-function resetConversation() {
-	draft.value = ''
-	editingIndex.value = null
-	editingDraft.value = ''
-	messages.value = hasActiveImage.value
-		? [{ role: 'assistant', content: INITIAL_ASSISTANT_MESSAGE }]
-		: []
+function createConversationState(): ChatConversationState {
+	return {
+		draft: '',
+		isSubmitting: false,
+		messages: [{ role: 'assistant', content: INITIAL_ASSISTANT_MESSAGE }],
+		editingIndex: null,
+		editingDraft: '',
+	}
 }
 
-watch(() => dataStore.activeDataItem?.fileName, () => {
-	resetConversation()
+function resetConversation() {
+	const fileName = activeFileName.value
+	if (!fileName) {
+		return
+	}
+
+	conversationStates[fileName] = createConversationState()
+}
+
+watch(activeFileName, (fileName) => {
+	if (!fileName || conversationStates[fileName]) {
+		return
+	}
+
+	conversationStates[fileName] = createConversationState()
 }, { immediate: true })
 
-watch(() => messages.value.length, () => {
+watch(() => [activeFileName.value, activeConversation.value?.messages.length ?? 0] as const, () => {
 	nextTick(() => {
 		messageList.value?.scrollTo({ top: messageList.value.scrollHeight, behavior: 'smooth' })
 	})
@@ -63,8 +84,10 @@ watch(
 	] as const,
 	async ([enabled, showChatPanel, backendUrl, backendToken]) => {
 		const requestId = ++modelRequestId
+		const normalizedBackendUrl = backendUrl?.trim() ?? ''
+		const normalizedBackendToken = backendToken?.trim() ?? ''
 		availableModels.value = []
-		if (!enabled || !showChatPanel || !backendUrl.trim() || !backendToken.trim()) {
+		if (!enabled || !showChatPanel || !normalizedBackendUrl || !normalizedBackendToken) {
 			userStore.settings.aiModelName = ''
 			return
 		}
@@ -101,13 +124,17 @@ watch(
 )
 
 async function submitQuestion(questionText?: string) {
-	const question = (questionText ?? draft.value).trim()
-	const activeDataItem = dataStore.activeDataItem
-	if (!question || isSubmitting.value || !activeDataItem?.imageUrl) {
+	const conversation = activeConversation.value
+	if (!conversation || !canChat.value) {
 		return
 	}
-	const activeFileName = activeDataItem.fileName
-	const shouldAttachImage = !messages.value.some(
+
+	const question = (questionText ?? conversation.draft).trim()
+	const activeDataItem = dataStore.activeDataItem
+	if (!question || conversation.isSubmitting || !activeDataItem?.imageUrl) {
+		return
+	}
+	const shouldAttachImage = !conversation.messages.some(
 		(message) => message.role === 'user' && message.images?.some((image) => image.imageUrl === activeDataItem.imageUrl),
 	)
 	const userMessage: AIChatMessage = {
@@ -116,13 +143,13 @@ async function submitQuestion(questionText?: string) {
 		images: shouldAttachImage ? [{ imageUrl: activeDataItem.imageUrl }] : undefined,
 	}
 
-	draft.value = ''
-	messages.value.push(userMessage)
-	await sendUserMessage(userMessage, messages.value.slice(0, -1), activeFileName)
+	conversation.draft = ''
+	conversation.messages.push(userMessage)
+	await sendUserMessage(conversation, userMessage, conversation.messages.slice(0, -1))
 }
 
-async function sendUserMessage(userMessage: AIChatMessage, history: AIChatMessage[], activeFileName: string) {
-	isSubmitting.value = true
+async function sendUserMessage(conversation: ChatConversationState, userMessage: AIChatMessage, history: AIChatMessage[]) {
+	conversation.isSubmitting = true
 
 	try {
 		const reply = await aiService.chatWithAgent({
@@ -132,58 +159,64 @@ async function sendUserMessage(userMessage: AIChatMessage, history: AIChatMessag
 			images: userMessage.images,
 		})
 
-		if (dataStore.activeDataItem?.fileName !== activeFileName) {
-			return
-		}
-
-		messages.value.push({
+		conversation.messages.push({
 			role: 'assistant',
 			content: reply.trim() || 'No answer returned.',
 		})
 	} catch {
-		if (dataStore.activeDataItem?.fileName !== activeFileName) {
-			return
-		}
-
-		messages.value.push({
+		conversation.messages.push({
 			role: 'assistant',
 			content: 'The request failed. Check AI settings and backend availability, then try again.',
 		})
 	} finally {
-		isSubmitting.value = false
+		conversation.isSubmitting = false
 	}
 }
 
 function beginEditMessage(index: number) {
-	const message = messages.value[index]
-	if (!message || message.role !== 'user' || isSubmitting.value) {
+	const conversation = activeConversation.value
+	if (!conversation) {
 		return
 	}
 
-	editingIndex.value = index
-	editingDraft.value = message.content
+	const message = conversation.messages[index]
+	if (!message || message.role !== 'user' || conversation.isSubmitting) {
+		return
+	}
+
+	conversation.editingIndex = index
+	conversation.editingDraft = message.content
 }
 
 function cancelEditMessage() {
-	editingIndex.value = null
-	editingDraft.value = ''
+	const conversation = activeConversation.value
+	if (!conversation) {
+		return
+	}
+
+	conversation.editingIndex = null
+	conversation.editingDraft = ''
 }
 
 async function saveEditedMessage(index: number) {
-	const message = messages.value[index]
-	const content = editingDraft.value.trim()
-	const activeFileName = dataStore.activeDataItem?.fileName
-	if (!message || message.role !== 'user' || !content || !activeFileName) {
+	const conversation = activeConversation.value
+	if (!conversation || !canChat.value) {
+		return
+	}
+
+	const message = conversation.messages[index]
+	const content = conversation.editingDraft.trim()
+	if (!message || message.role !== 'user' || !content) {
 		return
 	}
 
 	const updatedMessage: AIChatMessage = { ...message, content }
-	messages.value = [
-		...messages.value.slice(0, index),
+	conversation.messages = [
+		...conversation.messages.slice(0, index),
 		updatedMessage,
 	]
 	cancelEditMessage()
-	await sendUserMessage(updatedMessage, messages.value.slice(0, -1), activeFileName)
+	await sendUserMessage(conversation, updatedMessage, conversation.messages.slice(0, -1))
 }
 
 function onDraftKeydown(event: KeyboardEvent) {
@@ -213,7 +246,7 @@ function onEditDraftKeydown(event: KeyboardEvent, index: number) {
 					<button
 						type="button"
 						class="rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-						:disabled="isSubmitting || messages.length <= 1"
+						:disabled="!activeConversation || activeConversation.isSubmitting || activeConversation.messages.length <= 1"
 						@click="resetConversation"
 					>
 						Clear
@@ -231,139 +264,141 @@ function onEditDraftKeydown(event: KeyboardEvent, index: number) {
 				Enable AI-assisted labeling and provide the backend URL and token in Settings to use image chat.
 			</div>
 
-			<div class="px-4 pt-4" v-if="hasAIConfig">
-				<label class="mb-1 block text-xs font-medium text-gray-600" for="chat-model-select">
-					Model
-				</label>
-				<select
-					id="chat-model-select"
-					v-model="userStore.settings.aiModelName"
-					class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30 disabled:bg-gray-100"
-					:disabled="isSubmitting || isLoadingModels || !availableModels.length"
-				>
-					<option value="" disabled>
-						{{ isLoadingModels ? 'Loading models...' : 'Select a model' }}
-					</option>
-					<option v-for="modelName in availableModels" :key="modelName" :value="modelName">
-						{{ modelName }}
-					</option>
-				</select>
-			</div>
+			<template v-if="activeConversation">
+				<div class="px-4 pt-4" v-if="hasAIConfig">
+					<label class="mb-1 block text-xs font-medium text-gray-600" for="chat-model-select">
+						Model
+					</label>
+					<select
+						id="chat-model-select"
+						v-model="userStore.settings.aiModelName"
+						class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30 disabled:bg-gray-100"
+						:disabled="activeConversation.isSubmitting || isLoadingModels || !availableModels.length"
+					>
+						<option value="" disabled>
+							{{ isLoadingModels ? 'Loading models...' : 'Select a model' }}
+						</option>
+						<option v-for="modelName in availableModels" :key="modelName" :value="modelName">
+							{{ modelName }}
+						</option>
+					</select>
+				</div>
 
-			<div ref="messageList" class="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 bg-gray-50">
-				<div
-					v-for="(message, index) in messages"
-					:key="`${message.role}-${index}`"
-					class="flex flex-col gap-2"
-				>
+				<div ref="messageList" class="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 bg-gray-50">
 					<div
-						v-for="image in message.images ?? []"
-						:key="image.imageUrl"
-						class="flex"
-						:class="message.role === 'user' ? 'justify-end' : 'justify-start'"
+						v-for="(message, index) in activeConversation.messages"
+						:key="`${message.role}-${index}`"
+						class="flex flex-col gap-2"
 					>
 						<div
-							class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
-							:class="message.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'"
+							v-for="image in message.images ?? []"
+							:key="image.imageUrl"
+							class="flex"
+							:class="message.role === 'user' ? 'justify-end' : 'justify-start'"
 						>
-							<img
-								:src="image.imageUrl"
-								alt="Attached image"
-								class="h-24 w-24 object-cover"
-							/>
-						</div>
-					</div>
-					<div
-						class="flex"
-						:class="message.role === 'user' ? 'justify-end' : 'justify-start'"
-					>
-						<div class="w-[90%] flex flex-col gap-1.5">
 							<div
-								v-if="editingIndex === index"
-								class="rounded-2xl border border-blue-200 bg-white p-2 shadow-sm"
+								class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+								:class="message.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'"
 							>
-								<textarea
-									v-model="editingDraft"
-									rows="3"
-									class="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-									@keydown="onEditDraftKeydown($event, index)"
+								<img
+									:src="image.imageUrl"
+									alt="Attached image"
+									class="h-24 w-24 object-cover"
 								/>
-								<div class="mt-2 flex justify-end gap-2">
+							</div>
+						</div>
+						<div
+							class="flex"
+							:class="message.role === 'user' ? 'justify-end' : 'justify-start'"
+						>
+							<div class="w-[90%] flex flex-col gap-1.5">
+								<div
+									v-if="activeConversation.editingIndex === index"
+									class="rounded-2xl border border-blue-200 bg-white p-2 shadow-sm"
+								>
+									<textarea
+										v-model="activeConversation.editingDraft"
+										rows="3"
+										class="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+										@keydown="onEditDraftKeydown($event, index)"
+									/>
+									<div class="mt-2 flex justify-end gap-2">
+										<button
+											type="button"
+											class="rounded-md border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+											@click="cancelEditMessage"
+										>
+											Cancel
+										</button>
+										<button
+											type="button"
+											class="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+											:disabled="!activeConversation.editingDraft.trim() || !canChat"
+											@click="saveEditedMessage(index)"
+										>
+											Save
+										</button>
+									</div>
+								</div>
+								<div
+									v-else
+									class="rounded-2xl px-3 py-2 text-sm leading-6 shadow-sm whitespace-pre-wrap"
+									:class="message.role === 'user' ? 'bg-blue-600 text-white rounded-br-md' : 'bg-white text-gray-800 rounded-bl-md border border-gray-200'"
+								>
+									{{ message.content }}
+								</div>
+								<div v-if="message.role === 'user' && activeConversation.editingIndex !== index" class="flex justify-end">
 									<button
 										type="button"
-										class="rounded-md border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
-										@click="cancelEditMessage"
+										class="inline-flex h-7 w-7 items-center justify-center rounded-full text-blue-700 transition hover:bg-blue-50 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+										:disabled="!canChat || activeConversation.isSubmitting"
+										@click="beginEditMessage(index)"
+										aria-label="Edit message and discard following replies"
+										title="Edit message and discard following replies"
 									>
-										Cancel
-									</button>
-									<button
-										type="button"
-										class="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-										:disabled="!editingDraft.trim()"
-										@click="saveEditedMessage(index)"
-									>
-										Save
+										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M4 20h4l10.5-10.5a2.121 2.121 0 10-3-3L5 17v3z" />
+										</svg>
 									</button>
 								</div>
 							</div>
-							<div
-								v-else
-								class="rounded-2xl px-3 py-2 text-sm leading-6 shadow-sm whitespace-pre-wrap"
-								:class="message.role === 'user' ? 'bg-blue-600 text-white rounded-br-md' : 'bg-white text-gray-800 rounded-bl-md border border-gray-200'"
-							>
-								{{ message.content }}
-							</div>
-							<div v-if="message.role === 'user' && editingIndex !== index" class="flex justify-end">
-								<button
-									type="button"
-									class="inline-flex h-7 w-7 items-center justify-center rounded-full text-blue-700 transition hover:bg-blue-50 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-									:disabled="isSubmitting"
-									@click="beginEditMessage(index)"
-									aria-label="Edit message and discard following replies"
-									title="Edit message and discard following replies"
-								>
-									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4">
-										<path stroke-linecap="round" stroke-linejoin="round" d="M4 20h4l10.5-10.5a2.121 2.121 0 10-3-3L5 17v3z" />
-									</svg>
-								</button>
-							</div>
+						</div>
+					</div>
+					<div v-if="activeConversation.isSubmitting" class="flex justify-start">
+						<div class="rounded-2xl rounded-bl-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500 shadow-sm">
+							Thinking...
 						</div>
 					</div>
 				</div>
-				<div v-if="isSubmitting" class="flex justify-start">
-					<div class="rounded-2xl rounded-bl-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500 shadow-sm">
-						Thinking...
-					</div>
-				</div>
-			</div>
 
-			<div class="border-t border-gray-200 bg-white px-4 py-3 flex flex-col gap-3">
-				<ChatPanelQueries
-					v-model="predefinedQueries"
-					:disabled="isSubmitting"
-					@submit="submitQuestion"
-				/>
-
-				<form class="flex flex-col gap-2" @submit.prevent="submitQuestion()">
-					<textarea
-						v-model="draft"
-						rows="4"
-						class="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:bg-gray-100"
-						placeholder="Ask a question about the image"
-						:disabled="!canChat || isSubmitting"
-						@keydown="onDraftKeydown"
+				<div class="border-t border-gray-200 bg-white px-4 py-3 flex flex-col gap-3">
+					<ChatPanelQueries
+						v-model="predefinedQueries"
+						:disabled="!canChat || activeConversation.isSubmitting"
+						@submit="submitQuestion"
 					/>
-					<div class="flex justify-end">
-						<button
-							type="submit"
-							class="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-							:disabled="!draft.trim() || !canChat || isSubmitting"
-						>
-							Send
-						</button>
-					</div>
-				</form>
-			</div>
+
+					<form class="flex flex-col gap-2" @submit.prevent="submitQuestion()">
+						<textarea
+							v-model="activeConversation.draft"
+							rows="4"
+							class="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:bg-gray-100"
+							placeholder="Ask a question about the image"
+							:disabled="!canChat || activeConversation.isSubmitting"
+							@keydown="onDraftKeydown"
+						/>
+						<div class="flex justify-end">
+							<button
+								type="submit"
+								class="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+								:disabled="!activeConversation.draft.trim() || !canChat || activeConversation.isSubmitting"
+							>
+								Send
+							</button>
+						</div>
+					</form>
+				</div>
+			</template>
 		</template>
 	</section>
 </template>
