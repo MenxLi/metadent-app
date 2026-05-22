@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 from pathlib import Path
 from lfss.api import Client
 import json
@@ -50,8 +51,13 @@ class LocalDriver(DriverAbstract):
             return f.read()
 
 class LFSSDriver(DriverAbstract):
-    def __init__(self, image_dir: str, meta_dir: str, client = Client()):
-        self.client = client
+    def __init__(
+        self, 
+        image_dir: str, 
+        meta_dir: str, 
+        client: Optional[Client] = None
+        ):
+        self.client = client or Client()
         self.image_dir = PathWrapper(image_dir)
         self.meta_dir = PathWrapper(meta_dir)
     
