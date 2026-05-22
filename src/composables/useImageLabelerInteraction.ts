@@ -1,5 +1,5 @@
 import { computed, ref, watch, type Ref } from 'vue'
-import { resampleContour } from '@/utils'
+import { resampleContour } from '@/contour-tools'
 
 export type Point = [number, number]
 export type CropRect = [number, number, number, number]

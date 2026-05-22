@@ -7,7 +7,7 @@
   import { useUserStore } from '@/stores/user';
   import DescInput from './DescInput.vue';
   import { AIService, type DataLabel, type LabelItem, FileLabelStatus } from '@/api';
-  import { resampleContour } from '@/utils';
+  import { resampleContour } from '@/contour-tools';
 
   const dataStore = useDataStore();
   const uiStateStore = useUiStateStore();
@@ -159,7 +159,7 @@
         return;
       }
       targetLabel.preRefineContours = cloneContours(payload.label.contours);
-      targetLabel.contours = contours.map(contour => resampleContour(contour, 1e-3));
+      targetLabel.contours = contours.map(contour => resampleContour(contour));
     }
     catch (error) {
       console.error('Error refining contours:', error);
