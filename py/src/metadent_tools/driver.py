@@ -57,7 +57,7 @@ class LFSSDriver(DriverAbstract):
         meta_dir: str, 
         client: Optional[Client] = None
         ):
-        self.client = client or Client()
+        self.client = client if client is not None else Client()
         self.image_dir = PathWrapper(image_dir)
         self.meta_dir = PathWrapper(meta_dir)
     
