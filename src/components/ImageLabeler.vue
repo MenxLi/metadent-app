@@ -198,7 +198,10 @@ const displayContours = computed<DisplayContour[]>(() =>
       isActive: label.id === props.activeLabel,
       selectable: label.id !== props.activeLabel,
     }))
-  )
+  ).sort((a, b) => {
+    if (a.isActive === b.isActive) return 0;
+    return a.isActive ? 1 : -1;
+  })
 );
 
 const userStore = useUserStore();
