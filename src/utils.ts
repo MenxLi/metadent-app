@@ -71,3 +71,19 @@ export function to_snake_case_obj(obj: any): any {
   }
   return obj;
 }
+
+export function toCamelCaseObj(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(toCamelCaseObj);
+  } else if (obj !== null && typeof obj === 'object') {
+    const newObj: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        newObj[camelKey] = toCamelCaseObj(obj[key]);
+      }
+    }
+    return newObj;
+  }
+  return obj;
+}

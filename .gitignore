@@ -42,3 +42,9 @@ doc/.vitepress/cache
 
 # Temporary files
 metadent-app
+
+# py lib
+.venv
+.python-version
+uv.lock
+_test

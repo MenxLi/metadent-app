@@ -3,7 +3,7 @@ import type { Config } from '@/lfss';
 import { OpenAIChatClient, type AIChatRequest } from './openai-client';
 import { useUserStore } from '@/stores/user'
 import { useUiStateStore } from './stores/uistate';
-import { to_snake_case_obj } from './utils';
+import { to_snake_case_obj, toCamelCaseObj } from './utils';
 
 export interface UserInfo {
   username: string,
@@ -40,7 +40,6 @@ export interface LockStatus {
 }
 
 export interface DataLabel {
-  image_id: number;
   annotators: string[];
   overallDescription: string;
   items: LabelItem[];
@@ -187,14 +186,13 @@ export class BackendCalls {
     const meta = await this.connector.getMetadata(labelFile);
     if (meta == null) {
       return {
-        image_id: 0,
         annotators: [],
         overallDescription: "",
         items: [],
         crop: null, // no crop by default
       }
     }
-    const label = await this.connector.getJson(labelFile) as DataLabel;
+    const label = toCamelCaseObj(await this.connector.getJson(labelFile)) as DataLabel;
     // backward compatibility
     if (label.crop === undefined) { label.crop = null; }
     label.items = (label.items ?? []).map((item) => {
@@ -211,7 +209,7 @@ export class BackendCalls {
 
   async setLabel(fileName: string, label: DataLabel, annotator: string | null = null): Promise<void> {
     const metaDir = this._getDataMetaDir(fileName);
-    const flabelFile = metaDir + "label.json";
+    const labelFile = metaDir + "label.json";
     // add the annotator to the label
     if (!label.annotators) {  // backward compatibility
       label.annotators = [];
@@ -221,8 +219,8 @@ export class BackendCalls {
       label.annotators.push(annotator);
     }
 
-    console.info("setLabel", flabelFile, label);
-    await this.connector.putJson(flabelFile, label, {
+    console.info("setLabel", labelFile, label);
+    await this.connector.putJson(labelFile, label, {
       conflict: "overwrite",
     });
   }
