@@ -88,6 +88,9 @@ Used to generate a description of a user-selected polygon region.
   This represents one or multiple polygons.
   The coordinates are normalized to [0, 1] range with respect to the image width and height.
   In the format of (x, y), where x is the horizontal coordinate (starting from the left) and y is the vertical coordinate (starting from the top).
+- `context`: (optional) Additional context information that may help the AI generate better description. 
+  It should be the label data of the entire image, exclude the current contour region. 
+  The frontend will automatically prepare this context data and send along with the request if the backend supports it.
 
 <label class="example-label">Example</label>
 
@@ -116,6 +119,39 @@ Used to generate a description of a user-selected polygon region.
 }
 ```
 
+### Polygon Refinement
+```
+POST /region-refine
+```
+Used to refine the polygon contour drawn by the user. 
+This can typically be done with the SAM or similar segmentation models.
+
+#### Request Body
+- `image_id`: The unique identifier of the image.
+- `contours`: The original polygon coordinates drawn by the user on the frontend. Format: `[[[x1, y1], [x2, y2], ...], [...], ...]]`.
+  This represents one or multiple polygons. The coordinates are the same that sent in the region description endpoint.
+
+#### Response Body
+- `image_id`: The unique identifier of the image, just echo back from the request.
+- `contours`: The refined polygon coordinates. Format: `[[[x1, y1], [x2, y2], ...], [...], ...]]`. The format is the same as the request.
+
+
+### OpenAI API Proxy
+```
+[METHOD] /proxy/openai-v1/*
+```
+This is an optional proxy endpoint for the frontend to send requests to OpenAI compatible API routes (e.g. `POST /proxy/openai-v1/chat/completions` for GPT-based models).
+If your AI backend provides this endpoint, the frontend can open up a chat interface for users to directly chat with the AI and get responses from the OpenAI API. 
+
+The proxy should authorize the request against the same AI backend token instead of the OpenAI API key.
+
+::: warning
+Currently the image for chat is send using lfss image url with token included !!
+
+So **must use a self hosted OpenAI compatible server** to avoid potential data leak. Will add a safer image proxy for this in the future.
+:::
+
+
 ## Frontend Behavior
 
 AI features can be enabled as needed in the user settings:
@@ -130,6 +166,8 @@ the frontend will:
 
 - Automatically request overall image description when a new image is loaded.
 - After the user finishes drawing a polygon, it will request the description for that region.
+- Double click on a polygon to trigger the refinement and update the polygon.
+- Open up a chat interface for users to directly chat with the AI about the image.
 
 <style scoped>
   h3 {

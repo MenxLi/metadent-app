@@ -4,7 +4,7 @@ outline: [2, 3]
 
 # Python API
 
-The Python package under `py/` (published as `metadent-tools`) is a small helper library for reading MetaDent App datapoints (image + label) from either local folders or an LFSS backend.
+The Python package under `py/` (named as `metadent-tools`) is a small helper library for reading MetaDent App datapoints (image + label) from either local folders or an LFSS backend.
 
 ## Install
 
@@ -14,11 +14,18 @@ From the repository root:
 pip install -e ./py
 ```
 
-Exact requirements live in `py/pyproject.toml`.
+:::details Or install directly from GitHub (no local clone required):
+
+```sh
+pip install "git+https://github.com/MenxLi/metadent-app.git@main#subdirectory=py"
+```
+Tip: replace `@main` with a tag or commit SHA for a reproducible install.
+:::
+
 
 ## Loading Datapoints
 
-The python tools allow loading datapoints from either local folders or an LFSS backend, with a unified `driver` interface.
+The python tools allow loading datapoints from either local folders or an LFSS backend, with a unified `Driver` interface.
 
 The first step is to create a driver instance, which specifies where the images and metadata are stored. 
 ```py
@@ -49,7 +56,9 @@ with connect(driver) as db:
 
 ## Polygons (optional)
 
-`metadent_tools.polygon` provides helpers for converting between label polygons and binary masks.
+`metadent_tools.polygon` provides helpers for dealing with polygon annotations. 
+
+For example, following code converts between polygon contours and binary masks:
 
 ```py
 from metadent_tools import polygon
