@@ -32,6 +32,12 @@ class DriverAbstract(ABC):
     @abstractmethod
     def read_bytes(self, file_path: PathWrapper) -> bytes: ...
 
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
     def read_text(self, file_path: PathWrapper) -> str:
         return self.read_bytes(file_path).decode("utf-8")
     
@@ -42,6 +48,11 @@ class LocalDriver(DriverAbstract):
     def __init__(self, image_dir: str, meta_dir: str):
         self.image_dir = PathWrapper(image_dir)
         self.meta_dir = PathWrapper(meta_dir)
+    
+    def __enter__(self):
+        Path(self.image_dir).mkdir(exist_ok=True)
+        Path(self.meta_dir).mkdir(exist_ok=True)
+        return self
     
     def exists(self, file_path: PathWrapper) -> bool:
         return Path(file_path).exists()
@@ -60,6 +71,14 @@ class LFSSDriver(DriverAbstract):
         self.client = client if client is not None else Client()
         self.image_dir = PathWrapper(image_dir)
         self.meta_dir = PathWrapper(meta_dir)
+    
+    def __enter__(self):
+        self.__session = self.client.session()
+        self.__session.__enter__()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.__session.__exit__(exc_type, exc_val, exc_tb)
     
     def exists(self, file_path: PathWrapper) -> bool:
         return self.client.exists(file_path)

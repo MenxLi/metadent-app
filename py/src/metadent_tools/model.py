@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic import BeforeValidator, PlainSerializer
 from pydantic.alias_generators import to_camel
 
-from .driver import DriverAbstract, LFSSDriver
+from .driver import DriverAbstract
 
 def _contour_before_validator(value):
     if isinstance(value, list):
@@ -72,12 +72,8 @@ class DataPoint:
 
 @contextmanager
 def connect(driver: DriverAbstract, n_threads: Optional[int] = None):
-    with ThreadPoolExecutor(max_workers=n_threads) as pool:
-        if isinstance(driver, LFSSDriver):
-            with driver.client.session():
-                yield Database(driver=driver, thread_pool=pool)
-        else:
-            yield Database(driver=driver, thread_pool=pool)
+    with ThreadPoolExecutor(max_workers=n_threads) as pool, driver as driver:
+        yield Database(driver=driver, thread_pool=pool)
 
 @dataclass
 class Database:
