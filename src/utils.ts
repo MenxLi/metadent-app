@@ -79,11 +79,33 @@ function chaikinSmoothing(points: Point[]): Point[] {
 export function resampleContour(
   contour: Point[],
   epsilon = 5e-3,
-  smoothingIterations = 3
+  smoothingIterations = 2,
+  resolution = 0.005
 ): Point[] {
   let simplified = simplifyRDP(contour, epsilon);
   for (let i = 0; i < smoothingIterations; i++) {
     simplified = chaikinSmoothing(simplified);
+  }
+
+  const simplifiedFiltered: Point[] = [];
+  for (const point of simplified) {
+    if (simplifiedFiltered.length === 0) {
+      simplifiedFiltered.push(point);
+    } else {
+      const prevPoint = simplifiedFiltered[simplifiedFiltered.length - 1]!;
+      const dist = Math.hypot(point[0] - prevPoint[0], point[1] - prevPoint[1]);
+      if (dist >= resolution) {
+        simplifiedFiltered.push(point);
+      }
+    }
+  }
+  simplified = simplifiedFiltered;
+
+  console.debug(`Resampling contour with ${contour.length} points, epsilon=${epsilon}, smoothingIterations=${smoothingIterations}, resulting in ${simplified.length} points.`);
+
+  if (simplified.length >= contour.length) {
+    console.warn("Warning: Simplification did not reduce points, returning original contour.");
+    return contour; // Return original if simplification is not effective
   }
   return simplified;
 }

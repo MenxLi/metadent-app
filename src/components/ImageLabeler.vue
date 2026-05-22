@@ -303,6 +303,7 @@ function removeContour(labelId: string, contourIndex: number) {
     return {
       ...label,
       contours: label.contours.filter((_, i) => i !== contourIndex),
+      preRefineContours: null,
     };
   });
   emit('update:labels', updatedLabels);
@@ -378,7 +379,7 @@ function commitContour(contour: Point[]) {
 
   const updatedLabels: LabelItem[] = props.labels.map(label =>
     label.id === props.activeLabel
-      ? { ...label, contours: [...label.contours, contour], contour_refined: false }
+      ? { ...label, contours: [...label.contours, contour], preRefineContours: null }
       : label
   );
   emit('update:labels', updatedLabels);

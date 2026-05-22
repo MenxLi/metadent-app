@@ -28,6 +28,7 @@ function randomColor() {
 
 function clearContours() {
   model.value.contours = []
+  model.value.preRefineContours = null
 }
 
 function deleteLabel() {
@@ -51,7 +52,7 @@ function deleteLabel() {
           title="Description is AI generated"
         ></span>
         <span
-          v-if="model.contour_refined === true"
+          v-if="model.preRefineContours"
           class="h-1.5 w-1.5 rounded-full bg-cyan-500/45"
           title="Contours were AI refined"
         ></span>
