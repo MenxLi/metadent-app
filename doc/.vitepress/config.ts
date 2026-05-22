@@ -20,6 +20,7 @@ export default defineConfig({
           { text: 'Setup Backend', link: '/setup-backend' },
           { text: 'App Usage', link: '/app-usage' },
           { text: 'Auxillary AI Service', link: '/aux-backend' },
+          { text: 'Python API', link: '/python-api' },
           { text: 'Build Frontend from Source', link: '/setup-build' },
         ]
       }

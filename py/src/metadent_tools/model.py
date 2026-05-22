@@ -1,10 +1,10 @@
 from __future__ import annotations
 from io import BytesIO
 import numpy as np
-from typing import Optional, Literal, Callable, Annotated
 from PIL import Image
 from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor, Future
+from typing import Optional, Literal, Callable, Annotated
 
 from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict
@@ -56,6 +56,12 @@ class LabelItem(BaseSchema):
 class DataInfo(BaseSchema):
     file_name: str
     source: str
+    width: int
+    height: int
+
+    def image_size(self) -> tuple[int, int]:
+        """image size as (width, height)"""
+        return (self.width, self.height)
 
 @dataclass
 class DataPoint:
