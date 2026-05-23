@@ -51,7 +51,7 @@ from metadent_tools import connect
 
 with connect(driver) as db:
     dp = db.load("000000001")           # load a single datapoint by its ID
-    image = dp.load_image().result()    # load the image (returns a Future)
+    image = dp.load_image()             # load the image (PIL.Image.Image)
 ```
 
 ## Polygons (optional)

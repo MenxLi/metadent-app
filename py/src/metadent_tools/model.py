@@ -1,9 +1,9 @@
 from __future__ import annotations
-from io import BytesIO
 import numpy as np
+import json
+from io import BytesIO
 from PIL import Image
 from contextlib import contextmanager
-from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Optional, Literal, Callable, Annotated
 
 from dataclasses import dataclass
@@ -65,48 +65,38 @@ class DataInfo(BaseSchema):
 
 @dataclass
 class DataPoint:
-    load_image: Callable[[], Future[Image.Image]]
+    load_image: Callable[[], Image.Image]
     info: DataInfo
     label: Optional[DataLabel]
 
 
 @contextmanager
-def connect(driver: DriverAbstract, n_threads: Optional[int] = None):
-    with ThreadPoolExecutor(max_workers=n_threads) as pool:
-        try:
-            driver.on_connect()
-            yield Database(driver=driver, thread_pool=pool)
-        except: raise
-        finally: 
-            driver.on_disconnect()
+def connect(driver: DriverAbstract):
+    try:
+        driver._maybe_connect()
+        yield Database(driver=driver)
+    except: raise
+    finally: 
+        driver._maybe_disconnect()
+
 
 @dataclass
 class Database:
     driver: DriverAbstract
-    thread_pool: ThreadPoolExecutor
 
     def load(self, data_id: str):
-        info_future = self.thread_pool.submit(
-            lambda: DataInfo(**self.driver.read_json(self.driver.meta_dir / data_id / "info.json"))
-        )
-        label_future = self.thread_pool.submit(
-            lambda: DataLabel(**self.driver.read_json(self.driver.meta_dir / data_id / "label.json")) 
-                if self.driver.exists(self.driver.meta_dir / data_id / "label.json") else None
-        )
+        info_path = self.driver.meta_dir / data_id / "info.json"
+        label_path = self.driver.meta_dir / data_id / "label.json"
 
-        info = info_future.result()
-        label = label_future.result()
-        image_path = self.driver.image_dir / info.file_name
-        def image_getter():
-            image_blob = self.driver.read_bytes(image_path)
-            return Image.open(BytesIO(image_blob)).convert("RGB")
-            
-        return DataPoint(
-            load_image=lambda: self.thread_pool.submit(image_getter), 
-            info=info, 
-            label=label, 
-            )
-    
-    def load_many(self, data_ids: list[str]) -> list[DataPoint]:
-        load_futures = [self.thread_pool.submit(self.load, data_id) for data_id in data_ids]
-        return [future.result() for future in load_futures]
+        fetch_result = self.driver.check_many([info_path, label_path], read_text=True)
+        info = DataInfo(**json.loads(info_text)) if (info_text:=fetch_result[info_path]) is not None else None
+        label = DataLabel(**json.loads(label_text)) if (label_text:=fetch_result[label_path]) is not None else None
+
+        if info is None:
+            raise FileNotFoundError(f"Data info not found for data_id: {data_id}")
+        
+        def load_image():
+            image_path = self.driver.image_dir / info.file_name
+            image_bytes = self.driver.read_bytes(image_path)
+            return Image.open(BytesIO(image_bytes)).convert("RGB")
+        return DataPoint(load_image=load_image, info=info, label=label)

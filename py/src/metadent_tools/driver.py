@@ -33,11 +33,37 @@ class DriverAbstract(ABC):
     @abstractmethod
     def read_bytes(self, file_path: PathWrapper) -> bytes: ...
 
+    @abstractmethod
+    def check_many(
+        self, 
+        file_paths: list[PathWrapper], 
+        read_text: bool = False
+        ) -> dict[PathWrapper, Optional[str]]: 
+        """
+        check existence of multiple files, and optionally read text content if exists.
+         - if read_text is False, the value in the returned dict will be '' if exists, or None if not exists.
+         - if read_text is True, the value in the returned dict will be the text content if exists, or None if not exists.
+        """
+        ...
+
     def on_connect(self):
         pass
     
     def on_disconnect(self):
         pass
+    
+    def _maybe_connect(self):
+        if hasattr(self, "_connected") and self._connected:
+            return
+        self.on_connect()
+        self._connected = True
+    
+    def _maybe_disconnect(self):
+        if hasattr(self, "_connected") and self._connected:
+            self.on_disconnect()
+            self._connected = False
+        else:
+            raise RuntimeError("Driver is not connected")
 
     def read_text(self, file_path: PathWrapper) -> str:
         return self.read_bytes(file_path).decode("utf-8")
@@ -54,6 +80,24 @@ class LocalDriver(DriverAbstract):
     def on_connect(self):
         Path(self.image_dir).mkdir(exist_ok=True)
         Path(self.meta_dir).mkdir(exist_ok=True)
+    
+    def check_many(
+        self, 
+        file_paths: list[PathWrapper], 
+        read_text: bool = False
+        ) -> dict[PathWrapper, Optional[str]]: 
+        result = {}
+        for file_path in file_paths:
+            full_path = Path(file_path)
+            if full_path.exists():
+                if read_text:
+                    with open(full_path, "r", encoding="utf-8") as f:
+                        result[file_path] = f.read()
+                else:
+                    result[file_path] = ''
+            else:
+                result[file_path] = None
+        return result
     
     def exists(self, file_path: PathWrapper) -> bool:
         return Path(file_path).exists()
@@ -82,8 +126,16 @@ class LFSSDriver(DriverAbstract):
     def on_disconnect(self):
         self.__session.__exit__(None, None, None)
     
+    def check_many(
+        self, 
+        file_paths: list[PathWrapper], 
+        read_text: bool = False
+        ) -> dict[PathWrapper, Optional[str]]:
+        r = self.client.get_multiple_text(*map(str, file_paths), skip_content = not read_text)
+        return {PathWrapper(k): v for k, v in r.items()}
+    
     def exists(self, file_path: PathWrapper) -> bool:
-        return self.client.exists(file_path)
+        return self.client.exists(str(file_path))
 
     def read_bytes(self, file_path: PathWrapper) -> bytes:
-        return self.client.get(file_path)
+        return self.client.get(str(file_path))
