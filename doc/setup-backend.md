@@ -61,7 +61,7 @@ metadent-project/
 
 The info files should be JSON files containing metadata about each image. Essential fields include:
 
-- `file_name`: The name of the image file.
+- `fileName`: The name of the image file.
 - `height`: The height of the image in pixels.
 - `width`: The width of the image in pixels.
 - `source`: The original source of the image (e.g., dataset name, website, etc.).
