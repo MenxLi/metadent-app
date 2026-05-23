@@ -21,6 +21,12 @@ class PathWrapper(str):
         if self.endswith("/"):
             return PathWrapper(f"{self}{other}")
         return self.__truediv__(other)
+    
+    def parent(self) -> "PathWrapper":
+        split = self.rsplit("/", 1)
+        if len(split) == 1:
+            return PathWrapper("")
+        return PathWrapper(split[0])
 
 
 class DriverAbstract(ABC):
@@ -32,6 +38,16 @@ class DriverAbstract(ABC):
 
     @abstractmethod
     def read_bytes(self, file_path: PathWrapper) -> bytes: ...
+
+    @abstractmethod
+    def write_bytes(self, file_path: PathWrapper, data: bytes) -> None: 
+        """ Write bytes data to the given file path. If the file already exists, it will be overwritten.  """
+        ...
+
+    @abstractmethod
+    def delete(self, file_path: PathWrapper) -> None: 
+        """ Delete a file/dir if exists. If the path does not exist, do nothing.  """
+        ...
 
     @abstractmethod
     def check_many(
@@ -71,6 +87,12 @@ class DriverAbstract(ABC):
     def read_json(self, file_path: PathWrapper) -> dict:
         return json.loads(self.read_text(file_path))
 
+    def write_text(self, file_path: PathWrapper, data: str) -> None:
+        self.write_bytes(file_path, data.encode("utf-8"))
+    
+    def write_json(self, file_path: PathWrapper, data: dict, indent: Optional[int] = None) -> None:
+        self.write_text(file_path, json.dumps(data, ensure_ascii=False, indent=indent))
+
 class LocalDriver(DriverAbstract):
     def __init__(self, image_dir: str, meta_dir: str):
         self.image_dir = PathWrapper(image_dir)
@@ -105,6 +127,15 @@ class LocalDriver(DriverAbstract):
     def read_bytes(self, file_path: PathWrapper) -> bytes:
         with open(Path(file_path), "rb") as f:
             return f.read()
+    
+    def write_bytes(self, file_path: PathWrapper, data: bytes) -> None:
+        if not Path(file_path).parent.exists():
+            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(Path(file_path), "wb") as f:
+            f.write(data)
+    
+    def delete(self, file_path: PathWrapper) -> None:
+        Path(file_path).unlink(missing_ok=True)
 
 class LFSSDriver(DriverAbstract):
     def __init__(
@@ -139,3 +170,10 @@ class LFSSDriver(DriverAbstract):
 
     def read_bytes(self, file_path: PathWrapper) -> bytes:
         return self.client.get(str(file_path))
+    
+    def write_bytes(self, file_path: PathWrapper, data: bytes) -> None:
+        self.client.put(str(file_path), data, conflict = 'overwrite')
+    
+    def delete(self, file_path: PathWrapper) -> None:
+        if self.client.exists(str(file_path)):
+            self.client.delete(str(file_path))
