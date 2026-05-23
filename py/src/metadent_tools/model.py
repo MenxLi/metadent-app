@@ -72,8 +72,13 @@ class DataPoint:
 
 @contextmanager
 def connect(driver: DriverAbstract, n_threads: Optional[int] = None):
-    with ThreadPoolExecutor(max_workers=n_threads) as pool, driver as driver:
-        yield Database(driver=driver, thread_pool=pool)
+    with ThreadPoolExecutor(max_workers=n_threads) as pool:
+        try:
+            driver.on_connect()
+            yield Database(driver=driver, thread_pool=pool)
+        except: raise
+        finally: 
+            driver.on_disconnect()
 
 @dataclass
 class Database:

@@ -12,6 +12,7 @@ dependencies = [
     "numpy>=2.2",
     "pillow>=12.2.0",
     "pydantic>=2.13.4",
+    "typing-extensions>=4.15.0",
 ]
 
 [build-system]

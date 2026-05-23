@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional
+from typing_extensions import override
 from pathlib import Path
 from lfss.api import Client
 import json
@@ -32,10 +33,10 @@ class DriverAbstract(ABC):
     @abstractmethod
     def read_bytes(self, file_path: PathWrapper) -> bytes: ...
 
-    def __enter__(self):
-        return self
+    def on_connect(self):
+        pass
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def on_disconnect(self):
         pass
 
     def read_text(self, file_path: PathWrapper) -> str:
@@ -49,10 +50,10 @@ class LocalDriver(DriverAbstract):
         self.image_dir = PathWrapper(image_dir)
         self.meta_dir = PathWrapper(meta_dir)
     
-    def __enter__(self):
+    @override
+    def on_connect(self):
         Path(self.image_dir).mkdir(exist_ok=True)
         Path(self.meta_dir).mkdir(exist_ok=True)
-        return self
     
     def exists(self, file_path: PathWrapper) -> bool:
         return Path(file_path).exists()
@@ -72,13 +73,14 @@ class LFSSDriver(DriverAbstract):
         self.image_dir = PathWrapper(image_dir)
         self.meta_dir = PathWrapper(meta_dir)
     
-    def __enter__(self):
+    @override
+    def on_connect(self):
         self.__session = self.client.session()
         self.__session.__enter__()
-        return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__session.__exit__(exc_type, exc_val, exc_tb)
+    @override
+    def on_disconnect(self):
+        self.__session.__exit__(None, None, None)
     
     def exists(self, file_path: PathWrapper) -> bool:
         return self.client.exists(file_path)
