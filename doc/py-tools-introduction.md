@@ -70,4 +70,4 @@ with connect(driver) as db:
 
 ## Next
 
-For practical workflows, see [Python Tools Use Cases](./python-use-cases).
+For practical workflows, see [Python Tools Use Cases](./py-tools-use-cases).
