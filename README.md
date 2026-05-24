@@ -21,4 +21,4 @@ More details can be found in:
 > **MetaDent: Labeling Clinical Images for Vision-Language Models in Dentistry**  
 > _Meng-Xun Li†, Wen-Hui Deng†, Zhi-Xing Wu, Chun-Xiao Jin, Jia-Min Wu, Yue Han, James Kit Hon Tsoi, Gui-Song Xia*, Cui Huang*_  
 > Journal of Dental Research, 2026.  
-> [[Paper Link](#)] [[Project Page](https://menxli.github.io/metadent/)]
+> [[Paper Link](https://arxiv.org/pdf/2604.14866)] [[Project Page](https://menxli.github.io/metadent/)]
