@@ -53,8 +53,8 @@ class LabelItem(BaseSchema):
     color: str
     low_confidence: bool
     description: str
-    auto_generated: bool = False
     contours: list[Polygon]
+    auto_generated: Optional[bool] = None
     pre_refine_contours: Optional[list[Polygon]] = None
 
 class DataInfo(BaseSchema):
