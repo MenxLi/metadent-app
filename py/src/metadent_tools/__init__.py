@@ -1,6 +1,6 @@
 
 from .model import Database, DataPoint, connect
-from .driver import LocalDriver, LFSSDriver
+from .driver import LocalDriver, LFSSDriver, InMemoryDriver
 
 __all__ = [
     "Database", 
@@ -8,4 +8,5 @@ __all__ = [
     "connect",
     "LocalDriver",
     "LFSSDriver",
+    "InMemoryDriver",
 ]

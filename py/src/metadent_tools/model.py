@@ -96,6 +96,14 @@ class DataPoint:
             return image
         return DataPoint(identifier=identifier, load_image=load_image, info=info)
     
+    def set_skip(self, reason: str, skip_time: Optional[str] = None):
+        import datetime
+        if skip_time is None:
+            local_zone = datetime.datetime.now().astimezone().tzinfo
+            skip_time = datetime.datetime.now(tz=local_zone).isoformat()
+        self.skip = DataSkipFlag(reason=reason, skip_time=skip_time)
+        return self
+    
     def apply_crop(self):
         if not self.label or not self.label.crop:
             return self

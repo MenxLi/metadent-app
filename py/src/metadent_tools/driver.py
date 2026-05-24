@@ -186,3 +186,90 @@ class LFSSDriver(DriverAbstract):
     
     def delete(self, file_path: PathWrapper) -> None:
         self.client.delete(str(file_path))
+
+
+class InMemoryDriver(DriverAbstract):
+    def __init__(self, image_dir: str, meta_dir: str):
+        self.image_dir = PathWrapper(image_dir)
+        self.meta_dir = PathWrapper(meta_dir)
+        self._root: dict[str, dict | bytes] = {}
+
+    def _parts(self, file_path: PathWrapper) -> list[str]:
+        return [p for p in str(file_path).replace("\\", "/").split("/") if p and p != "."]
+
+    def _walk_to_parent(self, file_path: PathWrapper, create: bool) -> tuple[dict[str, dict | bytes], str]:
+        parts = self._parts(file_path)
+        if not parts:
+            raise ValueError("Root path is not a file path")
+
+        *dirs, leaf = parts
+        node: dict[str, dict | bytes] = self._root
+        for d in dirs:
+            nxt = node.get(d)
+            if nxt is None:
+                if not create:
+                    raise FileNotFoundError(str(file_path))
+                nxt = {}
+                node[d] = nxt
+            if not isinstance(nxt, dict):
+                raise NotADirectoryError(str(file_path))
+
+            node = nxt
+
+        return node, leaf
+
+    def _get(self, file_path: PathWrapper) -> dict | bytes:
+        parent, leaf = self._walk_to_parent(file_path, create=False)
+        if leaf not in parent:
+            raise FileNotFoundError(str(file_path))
+        return parent[leaf]
+
+    def check_many(
+        self,
+        file_paths: list[PathWrapper],
+        read_text: bool = False
+        ) -> dict[PathWrapper, Optional[str]]:
+        result: dict[PathWrapper, Optional[str]] = {}
+        for file_path in file_paths:
+            try:
+                node = self._get(file_path)
+            except FileNotFoundError:
+                result[file_path] = None
+                continue
+
+            if isinstance(node, dict):
+                if read_text:
+                    raise IsADirectoryError(str(file_path))
+                result[file_path] = ''
+                continue
+
+            node_bytes = bytes(node)
+            result[file_path] = node_bytes.decode("utf-8") if read_text else ''
+
+        return result
+
+    def exists(self, file_path: PathWrapper) -> bool:
+        try:
+            self._get(file_path)
+            return True
+        except FileNotFoundError:
+            return False
+
+    def read_bytes(self, file_path: PathWrapper) -> bytes:
+        node = self._get(file_path)
+        if isinstance(node, dict):
+            raise IsADirectoryError(str(file_path))
+        return node
+
+    def write_bytes(self, file_path: PathWrapper, data: bytes) -> None:
+        parent, leaf = self._walk_to_parent(file_path, create=True)
+        existing = parent.get(leaf)
+        if isinstance(existing, dict):
+            raise IsADirectoryError(str(file_path))
+        parent[leaf] = bytes(data)
+
+    def delete(self, file_path: PathWrapper) -> None:
+        parent, leaf = self._walk_to_parent(file_path, create=False)
+        if leaf not in parent:
+            raise FileNotFoundError(str(file_path))
+        del parent[leaf]
