@@ -295,6 +295,7 @@
 						<div class="chips" style="margin-bottom: 10px">
 							<button class="toggle" id="toggle-contours" aria-pressed="true" type="button">Contours</button>
 							<button class="toggle" id="toggle-pre-refine" aria-pressed="false" type="button">Pre-refine</button>
+							<button class="toggle" id="toggle-points" aria-pressed="false" type="button">Points</button>
 						</div>
 						<div class="range-row">
 							<label for="fill-alpha">Fill</label>
@@ -382,6 +383,7 @@
 
 				const state = {
 					showContours: true,
+					showPoints: false,
 					showPreRefine: false,
 					fillAlpha: 0.22,
 					strokeAlpha: 0.95,
@@ -430,6 +432,39 @@
 					ctx.stroke();
 				}
 
+				function orderPaletteColor(index, total) {
+					if (total <= 1) {
+						return "hsl(28, 88%, 58%)";
+					}
+
+					const t = index / (total - 1);
+					const hue = 216 - 176 * t;
+					const saturation = 82;
+					const lightness = 60 - 8 * Math.abs(t - 0.5);
+					return "hsl(" + hue.toFixed(1) + ", " + saturation + "%, " + lightness.toFixed(1) + "%)";
+				}
+
+				function drawContourPoints(points) {
+					if (!Array.isArray(points) || points.length === 0) {
+						return;
+					}
+
+					const radius = Math.max(2.8, Math.min(5.5, Math.min(canvas.width, canvas.height) / 250));
+					ctx.save();
+					ctx.lineWidth = Math.max(1.25, radius * 0.34);
+					ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+					for (let i = 0; i < points.length; i += 1) {
+						const px = clamp01(points[i][0]) * canvas.width;
+						const py = clamp01(points[i][1]) * canvas.height;
+						ctx.beginPath();
+						ctx.fillStyle = orderPaletteColor(i, points.length);
+						ctx.arc(px, py, radius, 0, Math.PI * 2);
+						ctx.fill();
+						ctx.stroke();
+					}
+					ctx.restore();
+				}
+
 				function drawPreRefinePolygon(points, colorHex) {
 					if (!Array.isArray(points) || points.length < 3) {
 						return;
@@ -465,12 +500,18 @@
 						if (state.showContours) {
 							for (const polygon of item.contours) {
 								drawPolygon(polygon, item.color);
+								if (state.showPoints) {
+									drawContourPoints(polygon);
+								}
 							}
 						}
 
 						if (state.showPreRefine) {
 							for (const polygon of item.pre_refine_contours || []) {
 								drawPreRefinePolygon(polygon, item.color);
+								if (state.showPoints) {
+									drawContourPoints(polygon);
+								}
 							}
 						}
 					}
@@ -576,6 +617,12 @@
 				document.getElementById("toggle-pre-refine").addEventListener("click", function (e) {
 					state.showPreRefine = !state.showPreRefine;
 					e.currentTarget.setAttribute("aria-pressed", state.showPreRefine ? "true" : "false");
+					drawAll();
+				});
+
+				document.getElementById("toggle-points").addEventListener("click", function (e) {
+					state.showPoints = !state.showPoints;
+					e.currentTarget.setAttribute("aria-pressed", state.showPoints ? "true" : "false");
 					drawAll();
 				});
 
