@@ -46,7 +46,7 @@ class DataLabel(BaseSchema):
     annotators: list[str]
     overall_description: str
     items: list[LabelItem]
-    crop: Optional[tuple[int, int, int, int]] = None     # [x, y, w, h]
+    crop: Optional[tuple[float, float, float, float]] = None     # [x, y, w, h]
 
 class LabelItem(BaseSchema):
     id: str
@@ -104,12 +104,12 @@ class DataPoint:
         original_image_loader = self.load_image
 
         xywh_f = np.array(self.label.crop, dtype=np.float64)
-        xywh_i = original_image_size_wh * xywh_f
+        xywh_i = np.concatenate((original_image_size_wh * xywh_f[:2], original_image_size_wh * xywh_f[2:4]))
         x, y, w, h = xywh_i.astype(np.int32)
 
         # update info
-        self.info.width = w
-        self.info.height = h
+        self.info.width = int(w)
+        self.info.height = int(h)
 
         # update image loader
         def load_image_new():
