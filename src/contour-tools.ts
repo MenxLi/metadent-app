@@ -6,20 +6,22 @@ type SimplificationNode = {
   prev: SimplificationNode | null;
   next: SimplificationNode | null;
   error: number;
-  removable: boolean;
 };
 
 const MIN_CONTOUR_POINTS = 3;
-const DEFAULT_CORNER_ANGLE_THRESHOLD = (135 * Math.PI) / 180;
-
-function squaredDistance(a: Point, b: Point): number {
-  const dx = a[0] - b[0];
-  const dy = a[1] - b[1];
-  return dx * dx + dy * dy;
-}
+const HARD_CORNER_ANGLE_THRESHOLD = (100 * Math.PI) / 180;
+const SOFT_CORNER_ANGLE_THRESHOLD = (155 * Math.PI) / 180;
+const CORNER_WINDOW_FACTOR = 2.5;
+const MIN_CORNER_WINDOW = 0.003;
+const MIN_CHAIKIN_CUT_RATIO = 0.06;
+const MAX_CHAIKIN_CUT_RATIO = 0.25;
 
 function distance(a: Point, b: Point): number {
-  return Math.sqrt(squaredDistance(a, b));
+  return Math.hypot(a[0] - b[0], a[1] - b[1]);
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
 }
 
 function triangleArea(prev: Point, current: Point, next: Point): number {
@@ -31,7 +33,7 @@ function triangleArea(prev: Point, current: Point, next: Point): number {
 }
 
 function isSamePoint(a: Point, b: Point, tolerance = 1e-9): boolean {
-  return squaredDistance(a, b) <= tolerance * tolerance;
+  return distance(a, b) <= tolerance;
 }
 
 function getTurnAngle(prev: Point, current: Point, next: Point): number {
@@ -47,11 +49,7 @@ function getTurnAngle(prev: Point, current: Point, next: Point): number {
   }
 
   const dot = (inX * outX + inY * outY) / (inLength * outLength);
-  return Math.acos(Math.max(-1, Math.min(1, dot)));
-}
-
-function isSharpCorner(prev: Point, current: Point, next: Point, threshold = DEFAULT_CORNER_ANGLE_THRESHOLD): boolean {
-  return getTurnAngle(prev, current, next) < threshold;
+  return Math.acos(clamp(dot, -1, 1));
 }
 
 function removeClosingPoint(contour: Point[]): Point[] {
@@ -99,14 +97,10 @@ function computeNodeError(node: SimplificationNode): number {
 
 function refreshNode(node: SimplificationNode): void {
   if (!node.prev || !node.next) {
-    node.removable = false;
     node.error = Number.POSITIVE_INFINITY;
     return;
   }
 
-  // For simplification, let `epsilon` be the only gate.
-  // Corner preservation is handled by keeping large-error points and by the optional smoothing step.
-  node.removable = true;
   node.error = computeNodeError(node);
 }
 
@@ -121,7 +115,6 @@ function simplifyClosedContour(points: Point[], epsilon: number): Point[] {
     prev: null,
     next: null,
     error: Number.POSITIVE_INFINITY,
-    removable: true,
   }));
 
   for (let index = 0; index < nodes.length; index++) {
@@ -205,20 +198,25 @@ function filterCloseNeighbors(points: Point[], minimumSpacing: number): Point[] 
   return filtered;
 }
 
+function getClosedContourMetrics(points: Point[]): { segmentLengths: number[]; perimeter: number } {
+  const segmentLengths = points.map((point, index) => distance(point, points[(index + 1) % points.length]!));
+  const perimeter = segmentLengths.reduce((sum, value) => sum + value, 0);
+  return { segmentLengths, perimeter };
+}
+
 function resampleClosedContourWithMaxPoints(points: Point[], spacing: number, maxPoints: number): Point[] {
   if (points.length <= MIN_CONTOUR_POINTS) {
     return points;
   }
 
-  const segmentLengths = points.map((point, index) => distance(point, points[(index + 1) % points.length]!));
-  const perimeter = segmentLengths.reduce((sum, value) => sum + value, 0);
+  const { segmentLengths, perimeter } = getClosedContourMetrics(points);
 
   if (perimeter === 0) {
     return points;
   }
 
   const unclampedCount = Math.round(perimeter / spacing);
-  const targetCount = Math.max(MIN_CONTOUR_POINTS, Math.min(Math.max(maxPoints, MIN_CONTOUR_POINTS), unclampedCount));
+  const targetCount = clamp(unclampedCount, MIN_CONTOUR_POINTS, Math.max(maxPoints, MIN_CONTOUR_POINTS));
   // Never upsample: resampling is only for reducing points / regularizing spacing.
   // Upsampling would hide the effect of `epsilon` (simplification).
   if (targetCount >= points.length) {
@@ -256,32 +254,107 @@ function resampleClosedContourWithMaxPoints(points: Point[], spacing: number, ma
   return resampled;
 }
 
-function smoothClosedContour(points: Point[]): Point[] {
+function getArcWindowPoint(points: Point[], index: number, step: 1 | -1, windowDistance: number): Point {
+  if (!points.length || windowDistance <= 0) {
+    return points[index]!;
+  }
+
+  const length = points.length;
+  let cursor = index;
+  let remaining = windowDistance;
+
+  while (remaining > 0) {
+    const nextCursor = (cursor + step + length) % length;
+    const start = points[cursor]!;
+    const end = points[nextCursor]!;
+    const segmentLength = distance(start, end);
+
+    if (segmentLength > 0 && segmentLength >= remaining) {
+      const t = remaining / segmentLength;
+      return [
+        start[0] + (end[0] - start[0]) * t,
+        start[1] + (end[1] - start[1]) * t,
+      ];
+    }
+
+    if (segmentLength > 0) {
+      remaining -= segmentLength;
+    }
+
+    cursor = nextCursor;
+
+    if (cursor === index) {
+      break;
+    }
+  }
+
+  return points[cursor]!;
+}
+
+function chaikinStepClosedContour(points: Point[], cornerFactors: number[]): Point[] {
   if (points.length <= MIN_CONTOUR_POINTS) {
     return points;
   }
 
-  const smoothed: Point[] = [];
+  const refined: Point[] = [];
 
   for (let index = 0; index < points.length; index++) {
-    const prev = points[(index - 1 + points.length) % points.length]!;
     const current = points[index]!;
     const next = points[(index + 1) % points.length]!;
+    const edgeFactor = Math.min(cornerFactors[index]!, cornerFactors[(index + 1) % points.length]!);
+    const cut = MIN_CHAIKIN_CUT_RATIO + (MAX_CHAIKIN_CUT_RATIO - MIN_CHAIKIN_CUT_RATIO) * clamp(edgeFactor, 0, 1);
 
-    // Preserve corners; smoothing tends to shrink/round sharp features.
-    if (isSharpCorner(prev, current, next)) {
-      smoothed.push(current);
-      continue;
-    }
+    const q: Point = [
+      (1 - cut) * current[0] + cut * next[0],
+      (1 - cut) * current[1] + cut * next[1],
+    ];
+    const r: Point = [
+      cut * current[0] + (1 - cut) * next[0],
+      cut * current[1] + (1 - cut) * next[1],
+    ];
 
-    // Light, stable smoothing that keeps point count constant.
-    smoothed.push([
-      0.25 * prev[0] + 0.5 * current[0] + 0.25 * next[0],
-      0.25 * prev[1] + 0.5 * current[1] + 0.25 * next[1],
-    ]);
+    refined.push(q, r);
   }
 
-  return smoothed;
+  return refined;
+}
+
+function smoothClosedContour(points: Point[], baseSpacing: number): Point[] {
+  if (points.length <= MIN_CONTOUR_POINTS) {
+    return points;
+  }
+
+  const { perimeter } = getClosedContourMetrics(points);
+  if (perimeter === 0) {
+    return points;
+  }
+
+  const averageSpacing = perimeter / points.length;
+  const desiredWindow = Math.max(baseSpacing * CORNER_WINDOW_FACTOR, averageSpacing * 1.5, MIN_CORNER_WINDOW);
+  const cornerWindow = Math.min(desiredWindow, perimeter * 0.25);
+
+  const cornerFactors = points.map((current, index) => {
+    const prev = getArcWindowPoint(points, index, -1, cornerWindow);
+    const next = getArcWindowPoint(points, index, 1, cornerWindow);
+    const angle = getTurnAngle(prev, current, next);
+
+    // Preserve strong corners, and taper smoothing on moderate corners.
+    if (angle <= HARD_CORNER_ANGLE_THRESHOLD) {
+      return 0;
+    }
+
+    if (angle >= SOFT_CORNER_ANGLE_THRESHOLD) {
+      return 1;
+    }
+
+    return (angle - HARD_CORNER_ANGLE_THRESHOLD) / (SOFT_CORNER_ANGLE_THRESHOLD - HARD_CORNER_ANGLE_THRESHOLD);
+  });
+
+  const chaikinRefined = chaikinStepClosedContour(points, cornerFactors);
+
+  // Chaikin doubles points; regularize back to the original count for stable downstream behavior.
+  const targetSpacing = perimeter / points.length;
+  return resampleClosedContourWithMaxPoints(chaikinRefined, targetSpacing, points.length);
 }
 
 /**
@@ -296,7 +369,7 @@ function smoothClosedContour(points: Point[]): Point[] {
  */
 export function resampleContour(
   contour: Point[],
-  epsilon = 0.002,
+  epsilon = 0.001,
   smoothingIterations = 2,
   resolution = 0.005,
 ): Point[] {
@@ -308,7 +381,7 @@ export function resampleContour(
   let simplified = simplifyClosedContour(normalized, epsilon);
 
   for (let index = 0; index < smoothingIterations; index++) {
-    simplified = smoothClosedContour(simplified);
+    simplified = smoothClosedContour(simplified, resolution);
   }
 
   simplified = resampleClosedContourWithMaxPoints(simplified, resolution, normalized.length);
