@@ -5,6 +5,7 @@ from io import BytesIO
 from PIL import Image
 from contextlib import contextmanager
 from typing import Optional, Literal, Callable, Annotated
+import uuid, random
 
 from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict
@@ -86,6 +87,11 @@ class DataPoint:
         image_format: str = "jpg",
         source: str = "unknown",
     ):
+        """
+        Create a DataPoint from a bare image, without any label or skip info.
+        The format determines the image file name extension, 
+        will be saved in that format when dumped to a database.
+        """
         info = DataInfo(
             file_name=f"{identifier}.{image_format}",
             source=source,
@@ -104,7 +110,39 @@ class DataPoint:
         self.skip = DataSkipFlag(reason=reason, skip_time=skip_time)
         return self
     
+    def with_label(self, skip_if_exists: bool = True):
+        """ Initialize the label field if not exists.  """
+        if self.label is not None and skip_if_exists:
+            return self
+        self.label = DataLabel(
+            annotators=[],
+            overall_description="",
+            items=[], 
+            crop=None
+        )
+        return self
+    
+    def new_label_item(self) -> LabelItem:
+        """ Add a label item with default values to the data point, and return it for further modification.  """
+        if not self.label:
+            raise ValueError("Label must be initialized before adding label items. ")
+        new_item = LabelItem(
+            id=str(uuid.uuid4()),
+            color=f"#{random.randint(0, 0xFFFFFF):06X}",
+            low_confidence=False,
+            description="",
+            contours=[],
+            auto_generated=None,
+            pre_refine_contours=None
+        )
+        self.label.items.append(new_item)
+        return new_item
+    
     def apply_crop(self):
+        """
+        If crop label is available, apply the crop to the current data point, 
+        and then clear the crop info in the label.
+        """
         if not self.label or not self.label.crop:
             return self
 

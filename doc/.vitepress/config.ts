@@ -26,8 +26,8 @@ export default defineConfig({
       {
         text: 'Python tools',
         items: [
-          { text: 'Introduction', link: '/py-tools-introduction' },
-          { text: 'Use Cases', link: '/py-tools-use-cases' },
+          { text: 'Basics', link: '/py-tools-basic' },
+          { text: 'Use Cases', link: '/py-tools-use-case' },
         ]
       }
     ],
