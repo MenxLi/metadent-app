@@ -22,7 +22,7 @@ with connect(LFSSDriver("bucket/images", "bucket/meta")) as db:
 You can also get the image size without loading the entire image:
 
 ```py
-image_size = dp.info.image_size()  # (width, height)
+image_size = dp.image_size()  # (width, height)
 ```
 
 ## 2. Create a Datapoint
@@ -74,7 +74,7 @@ Open `datapoint-preview.html` in your browser to inspect the datapoint.
 from metadent_tools import polygon
 
 # polygons -> mask
-mask = polygon.polygons_to_mask(dp.label.items[0].contours, dp.info.image_size())
+mask = polygon.polygons_to_mask(dp.label.items[0].contours, dp.image_size())
 
 # mask -> polygons
 polygons = polygon.mask_to_polygons(mask)

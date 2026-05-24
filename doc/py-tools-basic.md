@@ -5,7 +5,7 @@ outline: [2, 3]
 # Python Tools Introduction
 
 `metadent-tools` is a lightweight Python package for reading and writing MetaDent datapoints
-(image + metadata + labels) from local folders or an LFSS backend.
+(image + metadata) from different storage backends. 
 
 ## Install
 
@@ -57,6 +57,12 @@ mem_driver = InMemoryDriver(
 ```
 
 ## Basic Loading
+
+The basic workflow to load a datapoint is:
+- Create a driver for your storage backend
+- Connect to the database using the driver as dependency
+- Load a datapoint by ID (or create a new one)
+- Lazy-load the image as needed
 
 ```py
 from metadent_tools import connect, LocalDriver

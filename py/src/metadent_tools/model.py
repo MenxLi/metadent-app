@@ -64,10 +64,6 @@ class DataInfo(BaseSchema):
     width: int
     height: int
 
-    def image_size(self) -> tuple[int, int]:
-        """image size as (width, height)"""
-        return (self.width, self.height)
-
 class DataSkipFlag(BaseSchema):
     reason: str
     skip_time: str
@@ -101,6 +97,10 @@ class DataPoint:
         def load_image():
             return image
         return DataPoint(identifier=identifier, load_image=load_image, info=info)
+
+    def image_size(self) -> tuple[int, int]:
+        """image size as (width, height)"""
+        return (self.info.width, self.info.height)
     
     def set_skip(self, reason: str, skip_time: Optional[str] = None):
         import datetime
@@ -146,7 +146,7 @@ class DataPoint:
         if not self.label or not self.label.crop:
             return self
 
-        original_image_size_wh = np.array(self.info.image_size(), dtype=np.int32)
+        original_image_size_wh = np.array(self.image_size(), dtype=np.int32)
         original_image_loader = self.load_image
 
         xywh_f = np.array(self.label.crop, dtype=np.float64)
