@@ -24,10 +24,14 @@ def _contour_before_validator(value):
 def _contour_serializer(value: np.ndarray) -> list[list[float]]:
     return value.astype(float).tolist()
 
+# 2D array of shape (N, 2), 
+# where N is the number of points in the contour, 
+# and each point is represented as [x, y] (top-left origin), 
+# with normalized coordinates in the range [0, 1).
 Polygon = Annotated[
     np.ndarray[tuple[int, Literal[2]], np.dtype[np.float64]],
     BeforeValidator(_contour_before_validator), 
-    PlainSerializer(_contour_serializer)
+    PlainSerializer(_contour_serializer), 
 ]
 
 
@@ -91,7 +95,45 @@ class DataPoint:
         def load_image():
             return image
         return DataPoint(identifier=identifier, load_image=load_image, info=info)
+    
+    def apply_crop(self):
+        if not self.label or not self.label.crop:
+            return self
 
+        original_image_size_wh = np.array(self.info.image_size(), dtype=np.int32)
+        original_image_loader = self.load_image
+
+        xywh_f = np.array(self.label.crop, dtype=np.float64)
+        xywh_i = original_image_size_wh * xywh_f
+        x, y, w, h = xywh_i.astype(np.int32)
+
+        # update info
+        self.info.width = w
+        self.info.height = h
+
+        # update image loader
+        def load_image_new():
+            return original_image_loader().crop((x, y, x+w, y+h))
+        self.load_image = load_image_new
+
+        # update label
+        def crop_contours(contours: list[Polygon]) -> list[Polygon]:
+            eps = 1e-6
+            for i in range(len(contours)):
+                contours[i][:, 0] -= xywh_f[0]
+                contours[i][:, 1] -= xywh_f[1]
+                contours[i][:, 0] /= xywh_f[2]
+                contours[i][:, 1] /= xywh_f[3]
+            contours = [contour for contour in contours if not np.all((contour < eps) | (contour > 1-eps))]
+            return contours
+        for item in self.label.items:
+            item.contours = crop_contours(item.contours)
+            if item.pre_refine_contours is not None:
+                item.pre_refine_contours = crop_contours(item.pre_refine_contours)
+
+        # update crop field
+        self.label.crop = None
+        return self
 
 @contextmanager
 def connect(driver: DriverAbstract):
@@ -145,12 +187,12 @@ class Database:
         if data_point.label is not None:
             self.driver.write_json(label_path, data_point.label.model_dump(by_alias=True))
         else:
-            self.driver.delete(label_path)
+            self.driver.delete_if_exists(label_path)
 
         if data_point.skip is not None:
             self.driver.write_json(skip_path, data_point.skip.model_dump(by_alias=True))
         else:
-            self.driver.delete(skip_path)
+            self.driver.delete_if_exists(skip_path)
         
         image_bytes_io = BytesIO()
         data_point.load_image().save(image_bytes_io, format="JPEG")

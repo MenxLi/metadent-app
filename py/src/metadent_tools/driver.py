@@ -3,7 +3,7 @@ from typing import Optional
 from typing_extensions import override
 from pathlib import Path
 from lfss.api import Client
-import json
+import json, shutil
 
 class PathWrapper(str):
 
@@ -46,7 +46,10 @@ class DriverAbstract(ABC):
 
     @abstractmethod
     def delete(self, file_path: PathWrapper) -> None: 
-        """ Delete a file/dir if exists. If the path does not exist, do nothing.  """
+        """ 
+        Delete the file/dir at the given file path. 
+        If the path does not exist, will raise an error. 
+        """
         ...
 
     @abstractmethod
@@ -92,6 +95,10 @@ class DriverAbstract(ABC):
     
     def write_json(self, file_path: PathWrapper, data: dict, indent: Optional[int] = None) -> None:
         self.write_text(file_path, json.dumps(data, ensure_ascii=False, indent=indent))
+    
+    def delete_if_exists(self, file_path: PathWrapper) -> None:
+        if self.exists(file_path):
+            self.delete(file_path)
 
 class LocalDriver(DriverAbstract):
     def __init__(self, image_dir: str, meta_dir: str):
@@ -135,7 +142,10 @@ class LocalDriver(DriverAbstract):
             f.write(data)
     
     def delete(self, file_path: PathWrapper) -> None:
-        Path(file_path).unlink(missing_ok=True)
+        if Path(file_path).is_dir():
+            shutil.rmtree(file_path)
+        else:
+            Path(file_path).unlink()
 
 class LFSSDriver(DriverAbstract):
     def __init__(
@@ -175,5 +185,4 @@ class LFSSDriver(DriverAbstract):
         self.client.put(str(file_path), data, conflict = 'overwrite')
     
     def delete(self, file_path: PathWrapper) -> None:
-        if self.client.exists(str(file_path)):
-            self.client.delete(str(file_path))
+        self.client.delete(str(file_path))
