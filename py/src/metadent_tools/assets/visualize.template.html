@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{{ page_title }}</title>
+		<style>
+			:root {
+				--bg: #f4f2ee;
+				--panel: #ffffff;
+				--surface: #f9f7f2;
+				--ink: #23211d;
+				--muted: #686257;
+				--line: #ddd4c4;
+				--accent: #0f766e;
+				--accent-soft: #cfeeea;
+				--shadow: 0 12px 30px rgba(25, 22, 17, 0.1);
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				margin: 0;
+				font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+				color: var(--ink);
+				background:
+					radial-gradient(circle at 12% 15%, #fff8df 0, transparent 34%),
+					radial-gradient(circle at 84% 22%, #ddeee9 0, transparent 32%),
+					linear-gradient(180deg, #ece6d8 0%, var(--bg) 55%);
+				min-height: 100vh;
+			}
+
+			.page {
+				max-width: 1360px;
+				margin: 0 auto;
+				padding: 20px;
+				display: grid;
+				grid-template-columns: minmax(320px, 1fr) minmax(280px, 430px);
+				gap: 20px;
+			}
+
+			.card {
+				background: var(--panel);
+				border: 1px solid var(--line);
+				border-radius: 16px;
+				box-shadow: var(--shadow);
+			}
+
+			.viewer {
+				display: flex;
+				flex-direction: column;
+				min-height: 70vh;
+				overflow: hidden;
+			}
+
+			.viewer-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				padding: 14px 16px;
+				border-bottom: 1px solid var(--line);
+				background: var(--surface);
+			}
+
+			.viewer-header h1 {
+				margin: 0;
+				font-size: 1.06rem;
+				letter-spacing: 0.015em;
+			}
+
+			.sub {
+				font-size: 0.86rem;
+				color: var(--muted);
+			}
+
+			.viewer-stage {
+				padding: 14px;
+				flex: 1;
+				display: flex;
+			}
+
+			.canvas-wrap {
+				width: 100%;
+				background: #111;
+				border-radius: 10px;
+				overflow: auto;
+				border: 1px solid #26231f;
+				display: grid;
+				place-items: center;
+			}
+
+			.canvas-stack {
+				position: relative;
+				width: max-content;
+				max-width: 100%;
+				line-height: 0;
+			}
+
+			.canvas-stack img,
+			.canvas-stack canvas {
+				display: block;
+				max-width: 100%;
+				height: auto;
+			}
+
+			.canvas-stack canvas {
+				position: absolute;
+				inset: 0;
+				pointer-events: none;
+			}
+
+			.panel {
+				padding: 16px;
+				display: flex;
+				flex-direction: column;
+				gap: 16px;
+				max-height: calc(100vh - 40px);
+				overflow: auto;
+			}
+
+			.section {
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				background: var(--surface);
+			}
+
+			.section h2 {
+				margin: 0;
+				font-size: 0.96rem;
+			}
+
+			.section-head {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				padding: 10px 12px;
+				border-bottom: 1px solid var(--line);
+			}
+
+			.section-body {
+				padding: 12px;
+			}
+
+			.toggle {
+				border: 1px solid var(--line);
+				border-radius: 999px;
+				background: #fff;
+				padding: 3px 10px;
+				font-size: 0.8rem;
+				cursor: pointer;
+			}
+
+			.toggle[aria-pressed="true"] {
+				border-color: var(--accent);
+				color: #064e3b;
+				background: var(--accent-soft);
+			}
+
+			.kv {
+				margin: 0;
+				display: grid;
+				grid-template-columns: auto 1fr;
+				gap: 6px 12px;
+				font-size: 0.88rem;
+			}
+
+			.kv dt {
+				color: var(--muted);
+			}
+
+			.chips {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+			}
+
+			.chip {
+				border-radius: 999px;
+				border: 1px solid var(--line);
+				font-size: 0.78rem;
+				padding: 4px 9px;
+				background: #fff;
+			}
+
+			.label-list {
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+			}
+
+			.label-item {
+				background: #fff;
+				border: 1px solid var(--line);
+				border-radius: 10px;
+				padding: 10px;
+			}
+
+			.label-top {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				gap: 8px;
+				margin-bottom: 6px;
+			}
+
+			.label-name {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				font-size: 0.88rem;
+			}
+
+			.swatch {
+				width: 12px;
+				height: 12px;
+				border-radius: 50%;
+				border: 1px solid rgba(0, 0, 0, 0.3);
+			}
+
+			.label-desc {
+				margin: 0;
+				font-size: 0.84rem;
+				color: #4a453c;
+			}
+
+			.range-row {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				margin-top: 10px;
+			}
+
+			.range-row label {
+				font-size: 0.82rem;
+				color: var(--muted);
+			}
+
+			.range-row input {
+				width: 100%;
+			}
+
+			pre {
+				margin: 0;
+				font-size: 0.76rem;
+				max-height: 230px;
+				overflow: auto;
+				padding: 10px;
+				border-radius: 8px;
+				border: 1px solid var(--line);
+				background: #fff;
+			}
+
+			@media (max-width: 1050px) {
+				.page {
+					grid-template-columns: 1fr;
+				}
+
+				.panel {
+					max-height: none;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<main class="page">
+			<section class="card viewer">
+				<header class="viewer-header">
+					<div>
+						<h1>Datapoint {{ payload["identifier"] }}</h1>
+						<div class="sub">{{ payload["info"]["file_name"] }} | {{ payload["image"]["width"] }} x {{ payload["image"]["height"] }}</div>
+					</div>
+					<div class="chips">
+						<span class="chip">{{ payload["info"]["source"] }}</span>
+						<span class="chip">{{ payload["items"] | length }} labels</span>
+					</div>
+				</header>
+				<div class="viewer-stage">
+					<div class="canvas-wrap">
+						<div class="canvas-stack" id="canvas-stack">
+							<img id="base-image" src="{{ payload["image_src"] }}" alt="Datapoint image" />
+							<canvas id="overlay-canvas"></canvas>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<aside class="card panel">
+				<section class="section" id="section-overlays">
+					<div class="section-head">
+						<h2>Overlay Controls</h2>
+					</div>
+					<div class="section-body">
+						<div class="chips" style="margin-bottom: 10px">
+							<button class="toggle" id="toggle-contours" aria-pressed="true" type="button">Contours</button>
+							<button class="toggle" id="toggle-pre-refine" aria-pressed="false" type="button">Pre-refine</button>
+						</div>
+						<div class="range-row">
+							<label for="fill-alpha">Fill</label>
+							<input id="fill-alpha" type="range" min="0" max="0.8" value="0.22" step="0.02" />
+						</div>
+						<div class="range-row">
+							<label for="stroke-alpha">Stroke</label>
+							<input id="stroke-alpha" type="range" min="0.2" max="1" value="0.95" step="0.05" />
+						</div>
+					</div>
+				</section>
+
+				<section class="section" id="section-info">
+					<div class="section-head">
+						<h2>Info</h2>
+					</div>
+					<div class="section-body">
+						<dl class="kv">
+							<dt>Identifier</dt><dd>{{ payload["identifier"] }}</dd>
+							<dt>File</dt><dd>{{ payload["info"]["file_name"] }}</dd>
+							<dt>Source</dt><dd>{{ payload["info"]["source"] }}</dd>
+							<dt>Width</dt><dd>{{ payload["info"]["width"] }}</dd>
+							<dt>Height</dt><dd>{{ payload["info"]["height"] }}</dd>
+						</dl>
+					</div>
+				</section>
+
+				<section class="section" id="section-label">
+					<div class="section-head">
+						<h2>Label</h2>
+					</div>
+					<div class="section-body">
+						{% if payload["label"] %}
+						<p style="margin-top: 0; font-size: 0.87rem; color: #474236">{{ payload["label"]["overall_description"] }}</p>
+						<div class="label-list" id="label-list"></div>
+						{% if payload["label"]["annotators"] and payload["label"]["annotators"] | length > 0 %}
+						<div class="chips" style="margin-top: 10px">
+							{% for ann in payload["label"]["annotators"] %}
+							<span class="chip">{{ ann }}</span>
+							{% endfor %}
+						</div>
+						{% endif %}
+						{% else %}
+						<p style="margin: 0; font-size: 0.87rem; color: #5d574d">No label file available.</p>
+						{% endif %}
+					</div>
+				</section>
+
+				<section class="section" id="section-skip">
+					<div class="section-head">
+						<h2>Skip</h2>
+					</div>
+					<div class="section-body">
+						{% if payload["skip"] %}
+						<dl class="kv">
+							<dt>Reason</dt><dd>{{ payload["skip"]["reason"] }}</dd>
+							<dt>Skip time</dt><dd>{{ payload["skip"]["skip_time"] }}</dd>
+						</dl>
+						{% else %}
+						<p style="margin: 0; font-size: 0.87rem; color: #5d574d">Not skipped.</p>
+						{% endif %}
+					</div>
+				</section>
+
+				<section class="section" id="section-json">
+					<div class="section-head">
+						<h2>Raw JSON</h2>
+						<button class="toggle" id="toggle-json" aria-pressed="false" type="button">Show</button>
+					</div>
+					<div class="section-body" id="json-container" hidden>
+						<pre id="json-output"></pre>
+					</div>
+				</section>
+			</aside>
+		</main>
+
+		<script id="payload-data" type="application/json">{{ payload | tojson }}</script>
+		<script>
+			(function () {
+				const payload = JSON.parse(document.getElementById("payload-data").textContent);
+				const image = document.getElementById("base-image");
+				const canvas = document.getElementById("overlay-canvas");
+				const ctx = canvas.getContext("2d");
+				const labelList = document.getElementById("label-list");
+
+				const state = {
+					showContours: true,
+					showPreRefine: false,
+					fillAlpha: 0.22,
+					strokeAlpha: 0.95,
+					itemVisibility: {},
+				};
+
+				for (const item of payload.items) {
+					state.itemVisibility[item.id] = true;
+				}
+
+				function clamp01(value) {
+					return Math.max(0, Math.min(1, value));
+				}
+
+				function hexToRgba(hex, alpha) {
+					const safe = String(hex || "#00a0a0").trim();
+					if (!/^#[0-9a-fA-F]{6}$/.test(safe)) {
+						return "rgba(0, 160, 160, " + clamp01(alpha) + ")";
+					}
+					const r = parseInt(safe.slice(1, 3), 16);
+					const g = parseInt(safe.slice(3, 5), 16);
+					const b = parseInt(safe.slice(5, 7), 16);
+					return "rgba(" + r + ", " + g + ", " + b + ", " + clamp01(alpha) + ")";
+				}
+
+				function drawPolygon(points, colorHex) {
+					if (!Array.isArray(points) || points.length < 3) {
+						return;
+					}
+
+					ctx.beginPath();
+					for (let i = 0; i < points.length; i += 1) {
+						const px = clamp01(points[i][0]) * canvas.width;
+						const py = clamp01(points[i][1]) * canvas.height;
+						if (i === 0) {
+							ctx.moveTo(px, py);
+						} else {
+							ctx.lineTo(px, py);
+						}
+					}
+					ctx.closePath();
+					ctx.fillStyle = hexToRgba(colorHex, state.fillAlpha);
+					ctx.strokeStyle = hexToRgba(colorHex, state.strokeAlpha);
+					ctx.lineWidth = 2;
+					ctx.fill();
+					ctx.stroke();
+				}
+
+				function drawPreRefinePolygon(points, colorHex) {
+					if (!Array.isArray(points) || points.length < 3) {
+						return;
+					}
+
+					ctx.save();
+					ctx.beginPath();
+					for (let i = 0; i < points.length; i += 1) {
+						const px = clamp01(points[i][0]) * canvas.width;
+						const py = clamp01(points[i][1]) * canvas.height;
+						if (i === 0) {
+							ctx.moveTo(px, py);
+						} else {
+							ctx.lineTo(px, py);
+						}
+					}
+					ctx.closePath();
+					ctx.setLineDash([6, 5]);
+					ctx.strokeStyle = hexToRgba(colorHex, state.strokeAlpha * 0.9);
+					ctx.lineWidth = 1.5;
+					ctx.stroke();
+					ctx.restore();
+				}
+
+				function drawAll() {
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+					for (const item of payload.items) {
+						if (!state.itemVisibility[item.id]) {
+							continue;
+						}
+
+						if (state.showContours) {
+							for (const polygon of item.contours) {
+								drawPolygon(polygon, item.color);
+							}
+						}
+
+						if (state.showPreRefine) {
+							for (const polygon of item.pre_refine_contours || []) {
+								drawPreRefinePolygon(polygon, item.color);
+							}
+						}
+					}
+				}
+
+				function renderLabelList() {
+					if (!labelList) {
+						return;
+					}
+
+					labelList.innerHTML = "";
+
+					for (const item of payload.items) {
+						const row = document.createElement("article");
+						row.className = "label-item";
+
+						const top = document.createElement("div");
+						top.className = "label-top";
+
+						const name = document.createElement("div");
+						name.className = "label-name";
+
+						const swatch = document.createElement("span");
+						swatch.className = "swatch";
+						swatch.style.background = item.color;
+						name.appendChild(swatch);
+
+						const text = document.createElement("span");
+						text.textContent = item.id;
+						name.appendChild(text);
+
+						const toggle = document.createElement("button");
+						toggle.type = "button";
+						toggle.className = "toggle";
+						toggle.textContent = "Visible";
+						toggle.setAttribute("aria-pressed", "true");
+						toggle.addEventListener("click", function () {
+							state.itemVisibility[item.id] = !state.itemVisibility[item.id];
+							const active = state.itemVisibility[item.id];
+							toggle.textContent = active ? "Visible" : "Hidden";
+							toggle.setAttribute("aria-pressed", active ? "true" : "false");
+							drawAll();
+						});
+
+						top.appendChild(name);
+						top.appendChild(toggle);
+						row.appendChild(top);
+
+						const desc = document.createElement("p");
+						desc.className = "label-desc";
+						desc.textContent = item.description || "(No description)";
+						row.appendChild(desc);
+
+						const chips = document.createElement("div");
+						chips.className = "chips";
+						chips.style.marginTop = "8px";
+
+						const contourChip = document.createElement("span");
+						contourChip.className = "chip";
+						contourChip.textContent = item.contours.length + " contour(s)";
+						chips.appendChild(contourChip);
+
+						if (item.low_confidence) {
+							const c = document.createElement("span");
+							c.className = "chip";
+							c.textContent = "Low confidence";
+							chips.appendChild(c);
+						}
+
+						if (item.auto_generated) {
+							const c = document.createElement("span");
+							c.className = "chip";
+							c.textContent = "Auto generated";
+							chips.appendChild(c);
+						}
+
+						if (Array.isArray(item.pre_refine_contours) && item.pre_refine_contours.length > 0) {
+							const c = document.createElement("span");
+							c.className = "chip";
+							c.textContent = item.pre_refine_contours.length + " pre-refine";
+							chips.appendChild(c);
+						}
+
+						row.appendChild(chips);
+						labelList.appendChild(row);
+					}
+				}
+
+				function resizeCanvasToImage() {
+					const width = image.naturalWidth || payload.image.width;
+					const height = image.naturalHeight || payload.image.height;
+					canvas.width = width;
+					canvas.height = height;
+					drawAll();
+				}
+
+				document.getElementById("toggle-contours").addEventListener("click", function (e) {
+					state.showContours = !state.showContours;
+					e.currentTarget.setAttribute("aria-pressed", state.showContours ? "true" : "false");
+					drawAll();
+				});
+
+				document.getElementById("toggle-pre-refine").addEventListener("click", function (e) {
+					state.showPreRefine = !state.showPreRefine;
+					e.currentTarget.setAttribute("aria-pressed", state.showPreRefine ? "true" : "false");
+					drawAll();
+				});
+
+				document.getElementById("fill-alpha").addEventListener("input", function (e) {
+					state.fillAlpha = Number(e.target.value);
+					drawAll();
+				});
+
+				document.getElementById("stroke-alpha").addEventListener("input", function (e) {
+					state.strokeAlpha = Number(e.target.value);
+					drawAll();
+				});
+
+				document.getElementById("toggle-json").addEventListener("click", function (e) {
+					const button = e.currentTarget;
+					const container = document.getElementById("json-container");
+					const visible = container.hasAttribute("hidden");
+					if (visible) {
+						container.removeAttribute("hidden");
+						button.textContent = "Hide";
+						button.setAttribute("aria-pressed", "true");
+					} else {
+						container.setAttribute("hidden", "");
+						button.textContent = "Show";
+						button.setAttribute("aria-pressed", "false");
+					}
+				});
+
+				document.getElementById("json-output").textContent = JSON.stringify(
+					{
+						info: payload.info,
+						label: payload.label,
+						skip: payload.skip,
+					},
+					null,
+					2
+				);
+
+				renderLabelList();
+
+				if (image.complete) {
+					resizeCanvasToImage();
+				} else {
+					image.addEventListener("load", resizeCanvasToImage);
+				}
+			})();
+		</script>
+	</body>
+</html>

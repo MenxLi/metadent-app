@@ -1,13 +1,14 @@
 [project]
 name = "metadent-tools"
 version = "0.1.0"
-description = "A collection of tools for the Metadent project."
+description = "A collection of tools for the Metadent labeling software."
 readme = "README.md"
 authors = [
     { name = "limengxun", email = "limengxun45@outlook.com" }
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "jinja2>=3.1.6",
     "lfss>=0.18.0",
     "numpy>=2.2",
     "pillow>=12.2.0",
