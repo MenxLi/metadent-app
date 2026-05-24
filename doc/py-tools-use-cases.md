@@ -1,0 +1,84 @@
+---
+outline: [2, 3]
+---
+
+# Python Tools Use Cases
+
+This page shows common workflows using `metadent-tools`.
+
+## 1. Load a Datapoint
+
+```py
+from metadent_tools import connect, LFSSDriver
+
+with connect(LFSSDriver("metadent/images", "metadent/meta")) as db:
+    dp = db.load("00001")
+    image = dp.load_image()        # PIL.Image.Image
+```
+
+You can also get the image size without loading the entire image:
+
+```py
+image_size = dp.info.image_size()  # (width, height)
+```
+
+## 2. Create a Datapoint
+
+You can create a `DataPoint` from barely an image and set other metadata fields as needed, 
+then dump it to the database:
+
+```py
+from metadent_tools import connect, InMemoryDriver, DataPoint
+from PIL import Image
+
+with connect(InMemoryDriver("images", "meta")) as db:
+    dp = DataPoint.from_bare_image(
+        identifier="00001",
+        image=Image.new("RGB", (100, 100), color="red"),
+        source="demo",
+    )
+    dp.set_skip(reason="just for testing")
+    db.dump(dp)
+```
+
+## 3. Render a Visualization HTML
+This is useful for inspecting a datapoint for debugging or sharing with others. 
+The rendered HTML will show the image, polygon labels, and metadata in a structured format, 
+allowing toggle contour visibility and easy inspection of all fields.
+
+```py
+from pathlib import Path
+from metadent_tools import connect, LocalDriver
+from metadent_tools.visualize import render_datapoint_html
+
+driver = LocalDriver(image_dir="/local/images", meta_dir="/local/meta")
+
+with connect(driver) as db:
+    # here also applies the crop box to the image and polygon coordinates, 
+    # if crop info is available
+    dp = db.load("00001").apply_crop()
+
+html = render_datapoint_html(dp)
+Path("datapoint-preview.html").write_text(html, encoding="utf-8")
+```
+
+Open `datapoint-preview.html` in your browser to inspect the datapoint.
+
+## 4. Convert Between Polygons and Masks
+
+```py
+from metadent_tools import polygon
+
+# polygons -> mask
+mask = polygon.polygons_to_mask(dp.label.items[0].contours, dp.info.image_size())
+
+# mask -> polygons
+polygons = polygon.mask_to_polygons(mask)
+```
+
+This requires OpenCV, so make sure to install the extra dependencies:
+
+```sh
+pip install opencv-python-headless
+```
+> OpenCV is not a required dependency because it has variant packages and may cause conflicts in some environments.
