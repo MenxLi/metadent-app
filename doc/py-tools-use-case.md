@@ -76,8 +76,8 @@ with connect(driver) as db:
     # here also applies the crop box to the image and polygon coordinates
     # (if the crop field is available in the datapoint label)
     dp = db.load("demo-0001").apply_crop()
+    html = render_datapoint_html(dp)
 
-html = render_datapoint_html(dp)
 Path("datapoint-preview.html").write_text(html, encoding="utf-8")
 ```
 

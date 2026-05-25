@@ -76,9 +76,10 @@ with connect(driver) as db:
 
 ## Core Data Structures
 
-The core data structures are defined in [`metadent_tools.model`](https://github.com/MenxLi/metadent-app/blob/main/py/src/metadent_tools/model.py), 
-they are designed to reflect the structure of the metadata JSON files.
-The most important one the high-level `DataPoint` class, which represent one sample containing the image and all metadata fields.
+The core data structures are defined in [`metadent_tools.model`](https://github.com/MenxLi/metadent-app/blob/main/py/src/metadent_tools/model.py). 
+The `BaseSchema` inheritances reflecting the structure of the storage JSON files, 
+and the `DataPoint` class is designed for high-level representation of the image / metadata pair, 
+with convenient methods for common operations.
 
 > Note that the field are *snake_case* in python but they are *camelCase* in the JSON files, the conversion is handled by `pydantic`'s aliasing feature.
 
@@ -117,10 +118,20 @@ class DataSkipFlag(BaseSchema):
 @dataclass
 class DataPoint:
     identifier: str
-    load_image: Callable[[], Image.Image]
     info: DataInfo
     label: Optional[DataLabel] = None
     skip: Optional[DataSkipFlag] = None
+
+    def load_image(self) -> Image.Image: ...
+    def image_size(self) -> tuple[int, int]: ...
+    def with_label(self) -> Self: ...
+    def apply_crop(self) -> Self: ...
+    def set_skip(self, reason: str) -> Self: ...
+    def new_label_item(self) -> LabelItem: ...
+
+    @staticmethod
+    def from_bare_image(identifier: str, image: Image.Image) -> Self: ...
+
 ```
 
 
