@@ -26,10 +26,9 @@ def _contour_serializer(value: np.ndarray) -> list[list[float]]:
     return value.astype(float).tolist()
 
 # 2D array of shape (N, 2), 
-# where N is the number of points in the contour, 
 # and each point is represented as [x, y] (top-left origin), 
 # with normalized coordinates in the range [0, 1).
-Polygon = Annotated[
+type Polygon = Annotated[
     np.ndarray[tuple[int, Literal[2]], np.dtype[np.float64]],
     BeforeValidator(_contour_before_validator), 
     PlainSerializer(_contour_serializer), 
