@@ -4,7 +4,7 @@ import json
 from io import BytesIO
 from PIL import Image
 from contextlib import contextmanager
-from typing import Optional, Literal, Callable, Annotated
+from typing import Optional, Literal, Callable, Annotated, TypeAlias
 import uuid, random
 
 from dataclasses import dataclass
@@ -28,7 +28,7 @@ def _contour_serializer(value: np.ndarray) -> list[list[float]]:
 # 2D array of shape (N, 2), 
 # and each point is represented as [x, y] (top-left origin), 
 # with normalized coordinates in the range [0, 1).
-type Polygon = Annotated[
+Polygon: TypeAlias = Annotated[
     np.ndarray[tuple[int, Literal[2]], np.dtype[np.float64]],
     BeforeValidator(_contour_before_validator), 
     PlainSerializer(_contour_serializer), 

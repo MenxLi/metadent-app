@@ -14,7 +14,7 @@ def quantize_polygon(polygon: Polygon, qmax_wh: tuple[int, int] | int) -> np.nda
     w, h = qmax_wh
     scale = np.array([w, h], dtype=np.float64)
     quantized = np.round(polygon * scale).astype(np.int32)
-    return quantized
+    return quantized    # type: ignore
 
 def polygons_to_mask(polygons: list[Polygon], im_size_wh: tuple[int, int]) -> np.ndarray:
     """Convert polygons in normalized (x, y) coords to a binary 2D uint8 mask."""
@@ -58,5 +58,5 @@ def mask_to_polygons(mask: np.ndarray) -> list[Polygon]:
         pts = contour.squeeze(1)
         if pts.shape[0] < 3:
             continue
-        polygons.append(np.asarray(pts, dtype=np.float64) / denom)
+        polygons.append(np.asarray(pts, dtype=np.float64) / denom)  # type: ignore
     return polygons
