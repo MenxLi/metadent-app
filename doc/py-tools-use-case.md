@@ -6,54 +6,6 @@ outline: [2, 3]
 
 This page shows common workflows using `metadent-tools`.
 
-::: details Core Data Structures
-
-The core data structures are defined in [`metadent_tools.model`](https://github.com/MenxLi/metadent-app/blob/main/py/src/metadent_tools/model.py), 
-they are designed to be flexible and extensible to accommodate various use cases. 
-The most important one is `DataPoint`, which represents a single image and its associated metadata combination.
-
-
-```py
-# 2D array of shape (N, 2), 
-# and each point is represented as [x, y] (top-left origin), 
-# with normalized coordinates in the range [0, 1).
-type Polygon = np.ndarray[tuple[int, Literal[2]], np.dtype[np.float64]],
-
-class DataLabel(BaseSchema):
-    annotators: list[str]
-    overall_description: str
-    items: list[LabelItem]
-    crop: Optional[tuple[float, float, float, float]] = None     # [x, y, w, h]
-
-class LabelItem(BaseSchema):
-    id: str
-    color: str
-    low_confidence: bool
-    description: str
-    contours: list[Polygon]
-    auto_generated: Optional[bool] = None
-    pre_refine_contours: Optional[list[Polygon]] = None
-
-class DataInfo(BaseSchema):
-    file_name: str
-    source: str
-    width: int
-    height: int
-
-class DataSkipFlag(BaseSchema):
-    reason: str
-    skip_time: str
-
-@dataclass
-class DataPoint:
-    identifier: str
-    load_image: Callable[[], Image.Image]
-    info: DataInfo
-    label: Optional[DataLabel] = None
-    skip: Optional[DataSkipFlag] = None
-```
-:::
-
 ## 1. Load a Datapoint
 
 The `load` method loads all metadata fields and returns a `DataPoint` object, 

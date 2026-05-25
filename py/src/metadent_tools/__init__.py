@@ -1,12 +1,20 @@
 
-from .model import Database, DataPoint, connect
+from . import model, polygon, driver, visualization
+from .model import connect, Database, DataPoint
 from .driver import LocalDriver, LFSSDriver, InMemoryDriver
 
-__all__ = [
+__all__ = [ 
+    # modules
+    "model", 
+    "driver", 
+    "polygon", 
+    "visualization", 
+
+    # classes / functions
+    "connect",
     "Database", 
     "DataPoint",
-    "connect",
-    "LocalDriver",
     "LFSSDriver",
+    "LocalDriver",
     "InMemoryDriver",
 ]

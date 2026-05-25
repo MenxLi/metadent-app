@@ -74,6 +74,56 @@ with connect(driver) as db:
     image = dp.load_image()             # PIL.Image.Image
 ```
 
+## Core Data Structures
+
+The core data structures are defined in [`metadent_tools.model`](https://github.com/MenxLi/metadent-app/blob/main/py/src/metadent_tools/model.py), 
+they are designed to reflect the structure of the metadata JSON files.
+The most important one the high-level `DataPoint` class, which represent one sample containing the image and all metadata fields.
+
+> Note that the field are *snake_case* in python but they are *camelCase* in the JSON files, the conversion is handled by `pydantic`'s aliasing feature.
+
+
+```py
+# 2D array of shape (N, 2), 
+# and each point is represented as [x, y] (top-left origin), 
+# with normalized coordinates in the range [0, 1).
+type Polygon = np.ndarray[tuple[int, Literal[2]], np.dtype[np.float64]],
+
+class DataLabel(BaseSchema):
+    annotators: list[str]
+    overall_description: str
+    items: list[LabelItem]
+    crop: Optional[tuple[float, float, float, float]] = None     # [x, y, w, h]
+
+class LabelItem(BaseSchema):
+    id: str
+    color: str
+    low_confidence: bool
+    description: str
+    contours: list[Polygon]
+    auto_generated: Optional[bool] = None
+    pre_refine_contours: Optional[list[Polygon]] = None
+
+class DataInfo(BaseSchema):
+    file_name: str
+    source: str
+    width: int
+    height: int
+
+class DataSkipFlag(BaseSchema):
+    reason: str
+    skip_time: str
+
+@dataclass
+class DataPoint:
+    identifier: str
+    load_image: Callable[[], Image.Image]
+    info: DataInfo
+    label: Optional[DataLabel] = None
+    skip: Optional[DataSkipFlag] = None
+```
+
+
 ## Next
 
 For practical workflows, see [Python Tools Use Cases](./py-tools-use-case).
