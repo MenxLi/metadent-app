@@ -35,8 +35,7 @@ from metadent_tools import connect, InMemoryDriver, DataPoint
 from PIL import Image
 
 with connect(InMemoryDriver("images", "meta")) as db:
-    # use .with_label() to initialize the label field, 
-    # so to modify the label fields
+    # use .with_label() to initialize an empty label field
     dp = DataPoint.from_bare_image(
         identifier="demo-0001",
         image=Image.new("RGB", (100, 100), color="red"),
@@ -73,9 +72,7 @@ from metadent_tools.visualize import render_datapoint_html
 driver = LocalDriver(image_dir="/local/images", meta_dir="/local/meta")
 
 with connect(driver) as db:
-    # here also applies the crop box to the image and polygon coordinates
-    # (if the crop field is available in the datapoint label)
-    dp = db.load("demo-0001").apply_crop()
+    dp = db.load("demo-0001")
     html = render_datapoint_html(dp)
 
 Path("datapoint-preview.html").write_text(html, encoding="utf-8")

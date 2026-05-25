@@ -48,6 +48,17 @@ class DataLabel(BaseSchema):
     items: list[LabelItem]
     crop: Optional[tuple[float, float, float, float]] = None     # [x, y, w, h]
 
+    def add_item(self) -> LabelItem:
+        it = LabelItem(
+            id=str(uuid.uuid4()),
+            color="#%06x" % random.randint(0, 0xFFFFFF),
+            low_confidence=False,
+            description="",
+            contours=[],
+        )
+        self.items.append(it)
+        return it
+
 class LabelItem(BaseSchema):
     id: str
     color: str
@@ -120,22 +131,6 @@ class DataPoint:
             crop=None
         )
         return self
-    
-    def new_label_item(self) -> LabelItem:
-        """ Add a label item with default values to the data point, and return it for further modification.  """
-        if not self.label:
-            raise ValueError("Label must be initialized before adding label items. ")
-        new_item = LabelItem(
-            id=str(uuid.uuid4()),
-            color=f"#{random.randint(0, 0xFFFFFF):06X}",
-            low_confidence=False,
-            description="",
-            contours=[],
-            auto_generated=None,
-            pre_refine_contours=None
-        )
-        self.label.items.append(new_item)
-        return new_item
     
     def apply_crop(self):
         """
