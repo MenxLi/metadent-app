@@ -63,17 +63,16 @@
         v-else
         class="pointer-events-none absolute top-2 left-2 z-10"
       >
-        <button
-          type="button"
-          class="pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-stone-950/28 text-white/72 shadow-sm backdrop-blur-sm transition hover:bg-stone-950/42 hover:text-white"
-          aria-label="Show help hint"
+        <FloatingIconButton
+          ariaLabel="Show help hint"
           title="Show help hint"
+          positionClass="top-0 left-0"
           @click="isHintCollapsed = false"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3.5 w-3.5 text-white/70">
             <path d="M8 1.25a6.75 6.75 0 1 0 0 13.5A6.75 6.75 0 0 0 8 1.25Zm0 9.85a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Zm1.19-3.67-.4.27c-.47.32-.64.55-.64 1.1v.3a.75.75 0 0 1-1.5 0v-.3c0-1.12.49-1.77 1.3-2.31l.4-.27c.44-.29.65-.58.65-.97 0-.6-.5-1.02-1.2-1.02-.67 0-1.17.33-1.5.97a.75.75 0 0 1-1.34-.67c.58-1.16 1.61-1.8 2.84-1.8 1.55 0 2.7.97 2.7 2.52 0 .94-.47 1.63-1.31 2.18Z" />
           </svg>
-        </button>
+        </FloatingIconButton>
       </div>
 
     </div>
@@ -83,7 +82,7 @@
       :width="imageSize.width"
       :height="imageSize.height"
     >
-      <template v-if="!hideContours">
+      <template v-if="displayContours.length">
         <template v-for="contourItem in displayContours" :key="contourItem.key">
           <polygon
             :points="getReactiveSvgPoints(contourItem.contour)"
@@ -124,6 +123,7 @@ import { ref, computed, nextTick, watch, onMounted, onBeforeUnmount, toRef } fro
 import type { LabelItem } from '@/api';
 import { useUserStore } from '@/stores/user'
 import { useImageLabelerInteraction, type CropDraft, type CropRect, type Point } from '@/composables/useImageLabelerInteraction';
+import FloatingIconButton from './containers/FloatingIconButton.vue';
 
 const props = defineProps<{
   imageSrc: string;
@@ -132,7 +132,7 @@ const props = defineProps<{
   labels: LabelItem[];
   crop: CropRect | null; // [x, y, width, height] in normalized coordinates [0,1]
   activeLabel: string | null;
-  hideContours: boolean;
+  contourVisibilityMode: 'none' | 'active' | 'all';
 }>();
 
 const emit = defineEmits<{
@@ -187,8 +187,18 @@ watch(
 const hoveredPolygon = ref<HoveredPolygonState | null>(null);
 const imageSize = ref({ width: 1, height: 1 });
 
+const visibleLabels = computed(() => {
+  if (props.contourVisibilityMode === 'none') {
+    return [];
+  }
+  if (props.contourVisibilityMode === 'active') {
+    return props.labels.filter(label => label.id === props.activeLabel);
+  }
+  return props.labels;
+});
+
 const displayContours = computed<DisplayContour[]>(() =>
-  props.labels.flatMap(label =>
+  visibleLabels.value.flatMap(label =>
     label.contours.map((contour, contourIndex) => ({
       key: `${label.id}-${contourIndex}`,
       labelId: label.id,

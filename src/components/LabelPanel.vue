@@ -1,6 +1,7 @@
 <script lang="ts" setup>
   import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
   import ImageLabeler from './ImageLabeler.vue';
+  import ImageLabelerContourToggle from './ImageLabelerContourToggle.vue';
   import LabelItemInput from './LabelItemInput.vue';
   import { useDataStore } from '@/stores/data';
   import { useUiStateStore } from '@/stores/uistate';
@@ -9,18 +10,33 @@
   import { AIService, type DataLabel, type LabelItem, FileLabelStatus } from '@/api';
   import { resampleContour } from '@/contour-tools';
 
+  type ContourVisibilityMode = 'none' | 'active' | 'all';
+  const nextModeMap: Record<ContourVisibilityMode, ContourVisibilityMode> = {
+    none: 'active',
+    active: 'all',
+    all: 'none',
+  };
+
   const dataStore = useDataStore();
   const uiStateStore = useUiStateStore();
   const userStore = useUserStore();
   const activeLabel = ref<string>("");
   const unsavedChanges = ref(false);
-  const hideContours = ref(false);
+  const contourVisibilityMode = ref<ContourVisibilityMode>('all');
   const loading = ref(false);
   const imageMaxW = ref(800);
+
+  function cycleContourVisibilityMode() {
+    contourVisibilityMode.value = nextModeMap[contourVisibilityMode.value];
+  }
 
   const imageContainer = ref<HTMLDivElement | null>(null);
 
   {
+    const handleResize = () => {
+      updateImageMaxW();
+    };
+
     function updateImageMaxW() {
       if (imageContainer.value) {
         const { width } = imageContainer.value.getBoundingClientRect();
@@ -28,8 +44,8 @@
       }
     }
     watch( () => imageContainer.value, (newValue) => { if (newValue) { updateImageMaxW(); } });
-    onMounted(() => { window.addEventListener('resize', () => { updateImageMaxW(); }); })
-    onUnmounted(() => { window.removeEventListener('resize', () => { updateImageMaxW(); }); });
+    onMounted(() => { window.addEventListener('resize', handleResize); })
+    onUnmounted(() => { window.removeEventListener('resize', handleResize); });
   }
 
   watch(
@@ -307,20 +323,10 @@
 
     <div class="flex justify-center items-center p-4 w-full rounded-lg bg-gray-100" ref="imageContainer">
       <div class="relative" v-if="dataStore.activeDataItem && dataStore.activeDataLabel">
-        <button
-          @click.stop="hideContours = !hideContours"
-          :aria-label="hideContours ? 'Show contours' : 'Hide contours'"
-          :title="hideContours ? 'Show contours' : 'Hide contours'"
-          class="absolute top-2 right-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-stone-950/28 text-white/72 shadow-sm backdrop-blur-sm transition hover:bg-stone-950/42 hover:text-white pointer-events-auto"
-        >
-          <svg v-if="!hideContours" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" >
-            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" >
-            <path d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-7-11-7a21.3 21.3 0 015.341-5.986m4.086-1.587A9.953 9.953 0 0112 5c7 0 11 7 11 7a21.3 21.3 0 01-3.752 4.834M3 3l18 18" />
-          </svg>
-        </button>
+        <ImageLabelerContourToggle
+          :mode="contourVisibilityMode"
+          @cycle="cycleContourVisibilityMode"
+        />
         <ImageLabeler
           :imageSrc="dataStore.activeDataItem.imageUrl"
           :max-height="600"
@@ -328,7 +334,7 @@
           v-model:labels="dataStore.activeDataLabel.items"
           v-model:crop="dataStore.activeDataLabel.crop"
           v-model:activeLabel="activeLabel"
-          :hideContours="hideContours"
+          :contourVisibilityMode="contourVisibilityMode"
           @contour-committed="handleContourCommitted"
           @contour-dbclick="handleContourDbclick"
           @restore-contour-backup="restoreContourBackup"
