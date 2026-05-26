@@ -3,7 +3,7 @@ from typing import Optional
 from typing_extensions import override
 from pathlib import Path
 from lfss.api import Client
-import json, shutil
+import json, shutil, uuid, hashlib
 
 class PathWrapper(str):
 
@@ -189,10 +189,35 @@ class LFSSDriver(DriverAbstract):
 
 
 class InMemoryDriver(DriverAbstract):
-    def __init__(self, image_dir: str, meta_dir: str):
+    _root: dict[str, dict | bytes] = {}
+
+    def __init__(self, image_dir: Optional[str] = None, meta_dir: Optional[str] = None):
+        """
+        In-memory driver for testing and prototyping. Simulates file storage in memory using nested dictionaries.
+        - `image_dir` and `meta_dir` are used as namespaces for the in-memory storage, 
+          If not provided, random UUID-based namespaces will be used, and the corresponding data will be automatically deleted on disconnect.
+        """
+
+        self._image_dir_provided = image_dir is not None
+        self._meta_dir_provided = meta_dir is not None
+        if image_dir is None:
+            image_dir = f"images_{uuid.uuid4().hex}"
+        if meta_dir is None:
+            meta_dir = f"meta_{uuid.uuid4().hex}"
         self.image_dir = PathWrapper(image_dir)
         self.meta_dir = PathWrapper(meta_dir)
-        self._root: dict[str, dict | bytes] = {}
+    
+    def on_disconnect(self):
+        if not self._image_dir_provided:
+            try:
+                self.delete(self.image_dir)
+            except FileNotFoundError:
+                pass
+        if not self._meta_dir_provided:
+            try:
+                self.delete(self.meta_dir)
+            except FileNotFoundError:
+                pass
 
     def _parts(self, file_path: PathWrapper) -> list[str]:
         return [p for p in str(file_path).replace("\\", "/").split("/") if p and p != "."]

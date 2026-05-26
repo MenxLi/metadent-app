@@ -49,12 +49,17 @@ lfss_driver = LFSSDriver(
     meta_dir="/bucket/meta",
 )
 
-# In-memory storage (testing)
+# In-memory storage
 mem_driver = InMemoryDriver(
     image_dir="images",
     meta_dir="meta",
 )
 ```
+::: tip
+`InMemoryDriver` is useful for testing and prototyping, simulating the file storage in memory.
+Files are shared across all instances of InMemoryDriver of the same process, 
+given the same `image_dir` and `meta_dir` parameters (which are used as namespaces). 
+:::
 
 ## Basic Loading
 

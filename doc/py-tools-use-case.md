@@ -34,7 +34,7 @@ then dump it to the database:
 from metadent_tools import connect, InMemoryDriver, DataPoint
 from PIL import Image
 
-with connect(InMemoryDriver("images", "meta")) as db:
+with connect(InMemoryDriver()) as db:
     # use .with_label() to initialize an empty label field
     dp = DataPoint.from_bare_image(
         identifier="demo-0001",
