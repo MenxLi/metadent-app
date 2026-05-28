@@ -1,5 +1,5 @@
 
-from . import model, polygon, driver, visualization
+from . import model, polygon, driver, visualize
 from .model import connect, Database, DataPoint
 from .driver import LocalDriver, LFSSDriver, InMemoryDriver
 
@@ -8,7 +8,7 @@ __all__ = [
     "model", 
     "driver", 
     "polygon", 
-    "visualization", 
+    "visualize", 
 
     # classes / functions
     "connect",

@@ -4,11 +4,12 @@ from __future__ import annotations
 import base64
 from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from .model import DataPoint
+if TYPE_CHECKING:
+    from .model import DataPoint
 
 _TEMPLATE_NAME = "visualize.template.html"
 _TEMPLATE_DIR = Path(__file__).resolve().parent / "assets"
