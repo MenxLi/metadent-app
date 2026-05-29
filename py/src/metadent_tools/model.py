@@ -59,6 +59,19 @@ class DataLabel(BaseSchema):
         self.items.append(it)
         return it
 
+    def sanitize(self):
+        """ 
+        Remove typical illegal states for the label (currently as follows, may be extended in the future): 
+        - Any contour with less than 3 points will be removed, since it cannot form a valid polygon.
+        - Item with no valid contour, or without description will be removed.
+        """
+        for item in self.items:
+            item.contours = [contour for contour in item.contours if contour.shape[0] >= 3]
+            if item.pre_refine_contours is not None:
+                item.pre_refine_contours = [contour for contour in item.pre_refine_contours if contour.shape[0] >= 3]
+        self.items = [item for item in self.items if len(item.contours) > 0 and item.description.strip() != ""]
+        return self
+
 class LabelItem(BaseSchema):
     id: str
     color: str
