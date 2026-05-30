@@ -528,6 +528,22 @@ export class AIService {
     return response.output || "";
   }
 
+  public async overallDescriptionSimplify(image_id: string, overall_description: string): Promise<string> {
+    const response = await this.fetch('overall-description-simplify', {
+      image_id,
+      overall_description,
+    }) as LLMResponse;
+    return response.output || "";
+  }
+
+  public async overallDescriptionComplexify(image_id: string, overall_description: string): Promise<string> {
+    const response = await this.fetch('overall-description-complexify', {
+      image_id,
+      overall_description,
+    }) as LLMResponse;
+    return response.output || "";
+  }
+
   /// Generate region description for the given contours, with optional overall context
   /// The context should be pre-processed to exclude the region to be described, to avoid information leakage.
   /// The frontend will/should handle this pre-processing.

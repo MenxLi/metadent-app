@@ -7,6 +7,7 @@ import { useUiStateStore } from './uistate'
 
 interface UserSettingsAiFeatureSet {
   overallDescriptionOnLoad: boolean;
+  overallDescriptionImprovement: boolean;
   regionDescriptionOnDraw: boolean;
   regionRefineOnDoubleClick: boolean;
   enableChat: boolean;
@@ -42,6 +43,7 @@ function defaultSettings(): UserSettings {
     aiModelName: "",
     aiFeatureSet: {
       overallDescriptionOnLoad: true,
+      overallDescriptionImprovement: true,
       regionDescriptionOnDraw: true,
       regionRefineOnDoubleClick: true,
       enableChat: true,

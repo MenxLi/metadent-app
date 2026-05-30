@@ -164,6 +164,12 @@ function saveSettings() {
             <label class="flex items-center gap-2 text-gray-700">
               <input
                 type="checkbox" class="w-4 h-4"
+                v-model="aiFeatureSet.overallDescriptionImprovement" />
+              Overall description improvement
+            </label>
+            <label class="flex items-center gap-2 text-gray-700">
+              <input
+                type="checkbox" class="w-4 h-4"
                 v-model="aiFeatureSet.regionDescriptionOnDraw" />
               Region description on contour draw
             </label>
