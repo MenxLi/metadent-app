@@ -440,8 +440,7 @@ export class BackendCalls {
 
 interface LLMResponse {
   image_id: string;
-  question: string;
-  output: string;
+  choices: string[];
 }
 
 interface RegionRefineResponse {
@@ -525,7 +524,7 @@ export class AIService {
 
   public async overallDescription(image_id: string): Promise<string> {
     const response = await this.fetch('overall-description', { image_id }) as LLMResponse;
-    return response.output || "";
+    return response.choices[0] || "";
   }
 
   public async overallDescriptionSimplify(image_id: string, overall_description: string): Promise<string> {
@@ -533,7 +532,7 @@ export class AIService {
       image_id,
       overall_description,
     }) as LLMResponse;
-    return response.output || "";
+    return response.choices[0] || "";
   }
 
   public async overallDescriptionComplexify(image_id: string, overall_description: string): Promise<string> {
@@ -541,7 +540,7 @@ export class AIService {
       image_id,
       overall_description,
     }) as LLMResponse;
-    return response.output || "";
+    return response.choices[0] || "";
   }
 
   /// Generate region description for the given contours, with optional overall context
@@ -553,7 +552,7 @@ export class AIService {
       context = to_snake_case_obj(context) as unknown as DataLabel;
     }
     const response = await this.fetch('region-description', { image_id, contours, context }) as LLMResponse;
-    return response.output || "";
+    return response.choices[0] || "";
   }
 
   public async regionRefine(image_id: string, contours: [number, number][][]): Promise<[number, number][][]> {
