@@ -9,7 +9,7 @@ import uuid, random
 
 from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict
-from pydantic import BeforeValidator, PlainSerializer
+from pydantic import BeforeValidator, PlainSerializer, WithJsonSchema
 from pydantic.alias_generators import to_camel
 
 from .driver import DriverAbstract
@@ -28,10 +28,25 @@ def _contour_serializer(value: np.ndarray) -> list[list[float]]:
 # 2D array of shape (N, 2), 
 # and each point is represented as [x, y] (top-left origin), 
 # with normalized coordinates in the range [0, 1).
+# impl references: 
+# - https://pydantic.dev/docs/validation/dev/concepts/json_schema/#withjsonschema-annotation
 Polygon: TypeAlias = Annotated[
     np.ndarray[tuple[int, Literal[2]], np.dtype[np.float64]],
     BeforeValidator(_contour_before_validator), 
     PlainSerializer(_contour_serializer), 
+    WithJsonSchema({
+        "type": "array",
+        "items": {
+            "type": "array",
+            "items": {"type": "number"},
+            "minItems": 2,
+            "maxItems": 2
+        },
+        "examples": [
+            [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]],
+            [[0.0, 0.0], [0.0, 0.5], [0.5, 0.5], [0.5, 0.0]]
+        ]
+    })
 ]
 
 
