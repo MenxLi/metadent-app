@@ -44,6 +44,7 @@ export interface DataLabel {
   overallDescription: string;
   items: LabelItem[];
   crop: [number, number, number, number] | null; // [x, y, width, height] in normalized coordinates [0,1]
+  abnormalityExhausted: boolean;
 }
 
 export interface LabelItem {
@@ -57,6 +58,10 @@ export interface LabelItem {
   // region refine will save a backup here for backup and potential future use
   // null means no backup, which can be used to distinguish if the region has ever been refined
   preRefineContours?: [number, number][][] | null;
+
+  // whether the region is an abnormality, otherwise may be a referring annotation
+  // false means it's a generic referring annotation, true means it's an abnormality that needs attention
+  isAbnormality: boolean;
 }
 
 function parseVersion(version: string): [number, number, number] {
@@ -190,11 +195,14 @@ export class BackendCalls {
         overallDescription: "",
         items: [],
         crop: null, // no crop by default
+        abnormalityExhausted: true,
       }
     }
     const label = toCamelCaseObj(await this.connector.getJson(labelFile)) as DataLabel;
     // backward compatibility
     if (label.crop === undefined) { label.crop = null; }
+    // Normalize legacy nullable values into booleans for frontend simplicity.
+    label.abnormalityExhausted = label.abnormalityExhausted !== false;
     label.items = (label.items ?? []).map((item) => {
       const compatItem = item as LabelItem & {
         contour_refined?: boolean;
@@ -202,6 +210,9 @@ export class BackendCalls {
       if (compatItem.contour_refined && !compatItem.preRefineContours) {
         compatItem.preRefineContours = JSON.parse(JSON.stringify(compatItem.contours)) as [number, number][][]; // deep copy
       }
+
+      compatItem.isAbnormality = compatItem.isAbnormality !== false;
+
       return compatItem;
     });
     return label;
@@ -210,6 +221,12 @@ export class BackendCalls {
   async setLabel(fileName: string, label: DataLabel, annotator: string | null = null): Promise<void> {
     const metaDir = this._getDataMetaDir(fileName);
     const labelFile = metaDir + "label.json";
+    // Ensure the serialized payload keeps the new boolean-only contract.
+    label.abnormalityExhausted = label.abnormalityExhausted !== false;
+    label.items = (label.items ?? []).map((item) => ({
+      ...item,
+      isAbnormality: item.isAbnormality !== false,
+    }));
     // add the annotator to the label
     if (!label.annotators) {  // backward compatibility
       label.annotators = [];

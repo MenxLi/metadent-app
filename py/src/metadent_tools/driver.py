@@ -3,7 +3,7 @@ from typing import Optional
 from typing_extensions import override
 from pathlib import Path
 from lfss.api import Client
-import json, shutil, uuid, hashlib
+import json, shutil, uuid
 
 class PathWrapper(str):
 
