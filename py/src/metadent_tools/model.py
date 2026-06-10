@@ -135,6 +135,44 @@ class DataPoint:
         def load_image():
             return image
         return DataPoint(identifier=identifier, load_image=load_image, info=info)
+    
+    def copy(
+        self, 
+        override_identifier: Optional[str] = None, 
+        detach_image: bool = False
+        ) -> DataPoint:
+        """ 
+        Create a copy of the current data point. 
+        (HINT: to copy attribute by attribute, you can use the pydantic `model_copy()` method)
+        - override_identifier: 
+            if provided, the new data point will have the identifier set to it, 
+            and the file name in info will also be updated accordingly;
+        - detach_image:
+            if set to True, the image will be digested and kept in memory as closure,
+            making the image detached from the original data point.
+        """
+        info = self.info.model_copy()
+        if override_identifier and override_identifier.strip() != "":
+            info.file_name = f"{override_identifier}.{info.file_name.split('.')[-1]}"
+            identifier = override_identifier
+        else:
+            identifier = self.identifier
+
+        if detach_image:
+            closured_image = self.load_image()
+            def load_image_digested():
+                return closured_image
+            load_image = load_image_digested
+        else:
+            load_image = self.load_image
+
+        return DataPoint(
+            identifier=identifier,
+            load_image=load_image,
+            info=info,
+            label=self.label.model_copy() if self.label else None,
+            skip=self.skip.model_copy() if self.skip else None
+        )
 
     def image_size(self) -> tuple[int, int]:
         """image size as (width, height)"""
@@ -243,12 +281,28 @@ class Database:
             - if a destination file already exists, it will be overwritten.
             - if some field are set to None, the corresponding file will be deleted if exists.
         """
+        image_path = self.driver.image_dir / data_point.info.file_name
+        image_bytes_io = BytesIO()
+        data_point.load_image().save(image_bytes_io, format="JPEG")
+        self.driver.write_bytes(image_path, image_bytes_io.getvalue())
+
+        self.dump_meta(data_point, validate=False)
+    
+    def dump_meta(self, data_point: DataPoint, validate: bool = True):
+        """
+        Dump only the meta info of a data point to the database, without touching the image file.
+        This is useful when you want to update the label or skip info of a data point without changing the image.
+        """
         identifier = data_point.identifier
+
+        if validate:
+            image_path = self.driver.image_dir / data_point.info.file_name
+            if not self.driver.exists(image_path):
+                raise FileNotFoundError(f"Image file not found for data_id: {identifier}, expected at: {image_path}")
 
         info_path = self.driver.meta_dir / identifier / "info.json"
         label_path = self.driver.meta_dir / identifier / "label.json"
         skip_path = self.driver.meta_dir / identifier / "skip.json"
-        image_path = self.driver.image_dir / data_point.info.file_name
 
         self.driver.write_json(info_path, data_point.info.model_dump(by_alias=True))
 
@@ -261,7 +315,3 @@ class Database:
             self.driver.write_json(skip_path, data_point.skip.model_dump(by_alias=True))
         else:
             self.driver.delete_if_exists(skip_path)
-        
-        image_bytes_io = BytesIO()
-        data_point.load_image().save(image_bytes_io, format="JPEG")
-        self.driver.write_bytes(image_path, image_bytes_io.getvalue())
