@@ -58,10 +58,6 @@ export interface LabelItem {
   // region refine will save a backup here for backup and potential future use
   // null means no backup, which can be used to distinguish if the region has ever been refined
   preRefineContours?: [number, number][][] | null;
-
-  // whether the region is an abnormality, otherwise may be a referring annotation
-  // false means it's a generic referring annotation, true means it's an abnormality that needs attention
-  isAbnormality: boolean;
 }
 
 function parseVersion(version: string): [number, number, number] {
@@ -211,8 +207,6 @@ export class BackendCalls {
         compatItem.preRefineContours = JSON.parse(JSON.stringify(compatItem.contours)) as [number, number][][]; // deep copy
       }
 
-      compatItem.isAbnormality = compatItem.isAbnormality !== false;
-
       return compatItem;
     });
     return label;
@@ -223,10 +217,6 @@ export class BackendCalls {
     const labelFile = metaDir + "label.json";
     // Ensure the serialized payload keeps the new boolean-only contract.
     label.abnormalityExhausted = label.abnormalityExhausted !== false;
-    label.items = (label.items ?? []).map((item) => ({
-      ...item,
-      isAbnormality: item.isAbnormality !== false,
-    }));
     // add the annotator to the label
     if (!label.annotators) {  // backward compatibility
       label.annotators = [];

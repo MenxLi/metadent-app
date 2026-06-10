@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { LabelItem } from '@/api'
-import BooleanPillToggle from './BooleanPillToggle.vue'
 
 const model = defineModel<LabelItem>({ required: true })
 defineProps<{
@@ -92,18 +91,6 @@ function deleteLabel() {
           }
         }
       }"
-    />
-
-    <BooleanPillToggle
-      v-model="model.isAbnormality"
-      true-label="Abn"
-      false-label="Ref"
-      true-title="This region is an abnormality"
-      false-title="This region is a referring annotation"
-      tone="highlight"
-      size="compact"
-      surface="muted"
-      :stop-click-propagation="true"
     />
 
     <!-- 🧹 Clear contours -->
