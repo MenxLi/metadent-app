@@ -62,6 +62,7 @@ class DataLabel(BaseSchema):
     overall_description: str
     items: list[LabelItem]
     crop: Optional[tuple[float, float, float, float]] = None     # [x, y, w, h]
+    abnormality_exhausted: bool = True
 
     def add_item(self) -> LabelItem:
         it = LabelItem(
@@ -226,6 +227,8 @@ class DataPoint:
         def crop_contours(contours: list[Polygon]) -> list[Polygon]:
             eps = 1e-6
             for i in range(len(contours)):
+                if contours[i].shape[0] == 0:
+                    continue
                 contours[i][:, 0] -= xywh_f[0]
                 contours[i][:, 1] -= xywh_f[1]
                 contours[i][:, 0] /= xywh_f[2]
