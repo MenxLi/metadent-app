@@ -450,7 +450,7 @@ interface LLMResponse {
   choices: string[];
 }
 
-interface RegionRefineResponse {
+interface RegionResponse {
   image_id: string;
   contours: [number, number][][];
 }
@@ -563,9 +563,15 @@ export class AIService {
   }
 
   public async regionRefine(image_id: string, contours: [number, number][][]): Promise<[number, number][][]> {
-    const response = await this.fetch('region-refine', { image_id, contours }) as RegionRefineResponse;
+    const response = await this.fetch('region-refine', { image_id, contours }) as RegionResponse;
     return response.contours || [];
   }
+
+  public async regionReferring(image_id: string, prompt: string): Promise<[number, number][][]> {
+    const response = await this.fetch('region-referring', { image_id, prompt }) as RegionResponse;
+    return response.contours || [];
+  }
+
   public async chatWithAgent(request: AIChatRequest): Promise<string> {
     try {
       return await this.getOpenAIClient().complete(request);

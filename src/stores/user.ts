@@ -10,6 +10,7 @@ interface UserSettingsAiFeatureSet {
   overallDescriptionImprovement: boolean;
   regionDescriptionOnDraw: boolean;
   regionRefineOnDoubleClick: boolean;
+  regionReferringOnEnter: boolean;
   enableChat: boolean;
 }
 
@@ -46,6 +47,7 @@ function defaultSettings(): UserSettings {
       overallDescriptionImprovement: true,
       regionDescriptionOnDraw: true,
       regionRefineOnDoubleClick: true,
+      regionReferringOnEnter: true,
       enableChat: true,
     },
     aiChatPredefinedQueries: [...DEFAULT_AI_CHAT_PREDEFINED_QUERIES],

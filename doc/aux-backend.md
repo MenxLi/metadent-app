@@ -76,7 +76,11 @@ class RegionRefineRequest(BaseSchema):
     image_id: str
     contours: list[Polygon]
 
-class RegionRefineResponse(BaseSchema):
+class RegionReferringRequest(BaseSchema):
+    image_id: str
+    prompt: str
+
+class RegionResponse(BaseSchema):
     image_id: str
     contours: list[Polygon]
 
@@ -131,7 +135,15 @@ Refines the polygon contour drawn by the user, typically using SAM or similar se
 ```
 POST /region-refine
 RegionRefineRequest
-RegionRefineResponse
+RegionResponse
+```
+
+### Region referring segmentation on press `Enter`
+Refers to a specific region based on the user prompt, and return the polygon contour for that region. 
+```
+POST /region-referring
+RegionReferringRequest
+RegionResponse
 ```
 
 ### Chat with AI through OpenAI API proxy

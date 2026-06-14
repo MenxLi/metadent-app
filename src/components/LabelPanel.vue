@@ -183,6 +183,39 @@
     }
   }
 
+  async function handleRegionReferring(payload: { label: LabelItem; labels: LabelItem[] }) {
+    if (
+      !userStore.settings.enableAIHelpers ||
+      !userStore.settings.aiFeatureSet.regionReferringOnEnter
+    ) {
+      return;
+    }
+
+    const fileName = dataStore.activeDataItem?.fileName;
+    if (!fileName) {
+      return;
+    }
+
+    const prompt = payload.label.description.trim();
+    if (!prompt) {
+      return;
+    }
+
+    const imageId = fileName.replace(/\.[^/.]+$/, '');
+
+    try {
+      const contours = await new AIService().regionReferring(imageId, prompt);
+      const targetLabel = dataStore.activeDataLabel?.items.find(item => item.id === payload.label.id);
+      if (!targetLabel) {
+        return;
+      }
+      targetLabel.contours = contours.map(contour => resampleContour(contour));
+    }
+    catch (error) {
+      console.error('Error referring contours:', error);
+    }
+  }
+
   function restoreContourBackup() {
     if (!activeLabel.value) {
       return;
@@ -382,6 +415,7 @@
         <LabelItemInput
           v-model="dataStore.activeDataLabel.items[index]!"
           :active-contour-id="activeLabel"
+          @enter="handleRegionReferring({ label, labels: dataStore.activeDataLabel!.items })"
           @delete="(id: string) => {
             const itemIndex = dataStore.activeDataLabel!.items.findIndex(item => item.id === id);
             if (itemIndex !== -1) {
