@@ -4,9 +4,11 @@
   import ImageLabelerContourToggle from './ImageLabelerContourToggle.vue';
   import BooleanPillToggle from './BooleanPillToggle.vue';
   import LabelItemInput from './LabelItemInput.vue';
+  import FloatingHint from './containers/FloatingHint.vue';
   import { useDataStore } from '@/stores/data';
   import { useUiStateStore } from '@/stores/uistate';
   import { useUserStore } from '@/stores/user';
+  import { useProgressHint } from '@/composables/useProgressHint';
   import DescInput from './DescInput.vue';
   import { AIService, type DataLabel, type LabelItem, FileLabelStatus } from '@/api';
   import { resampleContour } from '@/contour-tools';
@@ -26,6 +28,8 @@
   const contourVisibilityMode = ref<ContourVisibilityMode>('all');
   const loading = ref(false);
   const imageMaxW = ref(800);
+  const regionReferringProgressHint = useProgressHint('Region Referring');
+  const regionReferringProgress = regionReferringProgressHint.progress;
 
   function cycleContourVisibilityMode() {
     contourVisibilityMode.value = nextModeMap[contourVisibilityMode.value];
@@ -204,15 +208,36 @@
     const imageId = fileName.replace(/\.[^/.]+$/, '');
 
     try {
+      regionReferringProgressHint.show({
+        body: 'Generating segmentation from your description...',
+        busy: true,
+      });
+
       const contours = await new AIService().regionReferring(imageId, prompt);
       const targetLabel = dataStore.activeDataLabel?.items.find(item => item.id === payload.label.id);
       if (!targetLabel) {
+        regionReferringProgressHint.show({
+          body: 'Target label changed before update was applied.',
+          tone: 'error',
+          autoHideMs: 1800,
+        });
         return;
       }
       targetLabel.contours = contours.map(contour => resampleContour(contour));
+      regionReferringProgressHint.show({
+        body: `Segmentation updated (${contours.length} contour${contours.length === 1 ? '' : 's'}).`,
+        tone: 'success',
+        autoHideMs: 1500,
+      });
     }
     catch (error) {
       console.error('Error referring contours:', error);
+      regionReferringProgressHint.show({
+        title: 'Region Referring Failed',
+        body: error instanceof Error ? error.message : String(error),
+        tone: 'error',
+        autoHideMs: 2500,
+      });
     }
   }
 
@@ -347,6 +372,7 @@
       window.removeEventListener('keydown', saveAndNextHandler);
       window.removeEventListener('keydown', skipHandler);
       window.removeEventListener('keydown', tabHandler);
+      regionReferringProgressHint.dispose();
     });
   }
 
@@ -409,6 +435,16 @@
     </div>
 
     <div v-if="dataStore.activeDataItem && dataStore.activeDataLabel" class="flex flex-col gap-3">
+      <div class="relative">
+        <FloatingHint
+          v-if="regionReferringProgress.show"
+          :title="regionReferringProgress.title"
+          :body="regionReferringProgress.body"
+          :tone="regionReferringProgress.tone"
+          :busy="regionReferringProgress.busy"
+          @close="regionReferringProgressHint.hide()"
+        />
+      </div>
       <template
         v-for="(label, index) in dataStore.activeDataLabel.items" :key="label.id"
       >
