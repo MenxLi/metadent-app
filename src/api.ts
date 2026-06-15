@@ -455,6 +455,10 @@ interface RegionResponse {
   contours: [number, number][][];
 }
 
+interface TranscribeResponse {
+  text: string;
+}
+
 export type { AIChatImageInput, AIChatMessage, AIChatRequest, AIChatRole } from './openai-client';
 
 export class AIService {
@@ -529,6 +533,18 @@ export class AIService {
     }
   }
 
+  async fetchTranscribe(audioBlob: Blob, audioExtension = 'webm'): Promise<TranscribeResponse> {
+    const buffer = await audioBlob.arrayBuffer()
+    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '')
+    return await this.fetch('transcribe', {
+      audio_blob: base64Audio,
+      audio_extension: audioExtension,
+    }) as TranscribeResponse
+  }
+
   public async overallDescription(image_id: string): Promise<string> {
     const response = await this.fetch('overall-description', { image_id }) as LLMResponse;
     return response.choices[0] || "";
@@ -570,6 +586,11 @@ export class AIService {
   public async regionReferring(image_id: string, prompt: string): Promise<[number, number][][]> {
     const response = await this.fetch('region-referring', { image_id, prompt }) as RegionResponse;
     return response.contours || [];
+  }
+
+  public async transcribe(audioBlob: Blob, audioExtension = 'webm'): Promise<string> {
+    const response = await this.fetchTranscribe(audioBlob, audioExtension)
+    return response.text || ''
   }
 
   public async chatWithAgent(request: AIChatRequest): Promise<string> {

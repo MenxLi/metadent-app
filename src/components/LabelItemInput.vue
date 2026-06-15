@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import type { LabelItem } from '@/api'
+import { ref } from 'vue'
 
 const model = defineModel<LabelItem>({ required: true })
-defineProps<{
+const props = defineProps<{
   activeContourId: string
+  transcriptEnabled: boolean
+  transcriptBusy?: boolean
+  transcriptRecording?: boolean
 }>()
+
+const inputRef = ref<HTMLInputElement | null>(null)
 
 const emit = defineEmits<{
   (e: 'delete', id: string): void
@@ -12,6 +18,7 @@ const emit = defineEmits<{
   (e: 'select-next', ): void
   (e: 'select-previous', ): void
   (e: 'enter', ): void
+  (e: 'transcribe', id: string): void
 }>()
 
 function toggleLowConfidence() {
@@ -35,12 +42,23 @@ function clearContours() {
 function deleteLabel() {
   emit('delete', model.value.id)
 }
+
+function focusInput() {
+  inputRef.value?.focus()
+}
+
+defineExpose({
+  focusInput,
+})
+
+const actionBtnBaseClass = 'text-white rounded-xl shadow text-sm inline-flex items-center justify-center px-1.5 py-1 min-w-8 min-h-8 transition-colors'
+const actionBtnDisabledClass = 'disabled:opacity-60 disabled:cursor-not-allowed'
 </script>
 
 <template>
   <div
     :class="
-      'flex items-center gap-4 text-gray-700 px-4 py-2 rounded-xl shadow-sm' +
+      'flex items-center gap-3 text-gray-700 px-4 py-2 rounded-xl shadow-sm' +
       (model.id === activeContourId ? ' bg-cyan-50' : ' bg-white')"
     @click="$emit('select', model.id)"
   >
@@ -76,6 +94,7 @@ function deleteLabel() {
 
     <!-- 📝 Description -->
     <input
+      ref="inputRef"
       v-model="model.description"
       type="text"
       class="grow bg-transparent border-b border-gray-300 focus:outline-none focus:border-blue-600 text-md"
@@ -98,13 +117,66 @@ function deleteLabel() {
       }"
     />
 
+    <button
+      v-if="props.transcriptEnabled"
+      @click.stop="$emit('transcribe', model.id)"
+      :disabled="props.transcriptBusy"
+      :title="props.transcriptBusy ? 'Transcribing audio' : props.transcriptRecording ? 'Stop recording and transcribe' : 'Start recording audio for this label'"
+      :class="[
+        actionBtnBaseClass,
+        actionBtnDisabledClass,
+        props.transcriptRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700',
+        props.transcriptBusy ? 'disabled:bg-emerald-300' : ''
+      ]"
+      tabindex="-1"
+    >
+      <span v-if="props.transcriptBusy" class="text-sm">...</span>
+      <svg
+        v-else-if="props.transcriptRecording"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        class="h-3.5 w-3.5"
+        aria-hidden="true"
+      >
+        <rect x="6" y="6" width="12" height="12" rx="2" />
+      </svg>
+      <svg
+        v-else
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="h-4 w-4"
+        aria-hidden="true"
+      >
+        <path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z" />
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+        <path d="M12 19v3" />
+        <path d="M8 22h8" />
+      </svg>
+    </button>
+
     <!-- 🧹 Clear contours -->
-    <button @click="clearContours" title="Clear contours" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-xl shadow text-sm" tabindex="-1">
+    <button
+      @click="clearContours"
+      title="Clear contours"
+      :class="[actionBtnBaseClass, 'bg-blue-600 hover:bg-blue-700']"
+      tabindex="-1"
+    >
       🧹
     </button>
 
     <!-- 🗑️ Delete label -->
-    <button @click="deleteLabel" title="Delete label" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-xl shadow text-sm" tabindex="-1">
+    <button
+      @click="deleteLabel"
+      title="Delete label"
+      :class="[actionBtnBaseClass, 'bg-red-500 hover:bg-red-600']"
+      tabindex="-1"
+    >
       🗑️
     </button>
   </div>

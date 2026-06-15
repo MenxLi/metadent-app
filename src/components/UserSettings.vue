@@ -188,6 +188,12 @@ function saveSettings() {
             <label class="flex items-center gap-2 text-gray-700">
               <input
                 type="checkbox" class="w-4 h-4"
+                v-model="aiFeatureSet.transcript" />
+              Label description transcript input
+            </label>
+            <label class="flex items-center gap-2 text-gray-700">
+              <input
+                type="checkbox" class="w-4 h-4"
                 v-model="aiFeatureSet.enableChat" />
               Chat with AI assistant
             </label>
