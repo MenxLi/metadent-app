@@ -176,6 +176,12 @@ function saveSettings() {
             <label class="flex items-center gap-2 text-gray-700">
               <input
                 type="checkbox" class="w-4 h-4"
+                v-model="aiFeatureSet.regionDescriptionProposeOnClick" />
+              Region description proposal on click
+            </label>
+            <label class="flex items-center gap-2 text-gray-700">
+              <input
+                type="checkbox" class="w-4 h-4"
                 v-model="aiFeatureSet.regionRefineOnDoubleClick" />
               Region refine on contour double click
             </label>

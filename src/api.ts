@@ -455,6 +455,11 @@ interface RegionResponse {
   contours: [number, number][][];
 }
 
+interface RegionDescriptionProposeResponse {
+  image_id: string;
+  choices: string[];
+}
+
 interface TranscribeResponse {
   text: string;
 }
@@ -586,6 +591,12 @@ export class AIService {
   public async regionReferring(image_id: string, prompt: string): Promise<[number, number][][]> {
     const response = await this.fetch('region-referring', { image_id, prompt }) as RegionResponse;
     return response.contours || [];
+  }
+
+  /// Propose multiple potential items with region description for the given image
+  public async regionDescriptionPropose(image_id: string): Promise<Array<string>> {
+    const response = await this.fetch('region-description-propose', { image_id }) as RegionDescriptionProposeResponse;
+    return response.choices || [];
   }
 
   public async transcribe(audioBlob: Blob, audioExtension = 'webm'): Promise<string> {
