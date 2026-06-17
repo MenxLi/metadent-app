@@ -234,7 +234,7 @@
         busy: true,
       });
 
-      const descriptions = (await aiService.regionDescriptionPropose(imageId))
+      const descriptions = (await aiService.regionDescriptionPropose(imageId, activeDataLabel))
         .map((description) => description.trim())
         .filter(Boolean);
 

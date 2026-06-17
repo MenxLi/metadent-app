@@ -574,7 +574,7 @@ export class AIService {
   /// Generate region description for the given contours, with optional overall context
   /// The context should be pre-processed to exclude the region to be described, to avoid information leakage.
   /// The frontend will/should handle this pre-processing.
-  public async regionDescription(image_id: string, contours: [number, number][][], context: null | DataLabel = null): Promise<string> {
+  public async regionDescription(image_id: string, contours: [number, number][][], context: DataLabel): Promise<string> {
     if (context) {
       // convert context to snake_case to be compatible with python backend
       context = to_snake_case_obj(context) as unknown as DataLabel;
@@ -594,8 +594,9 @@ export class AIService {
   }
 
   /// Propose multiple potential items with region description for the given image
-  public async regionDescriptionPropose(image_id: string): Promise<Array<string>> {
-    const response = await this.fetch('region-description-propose', { image_id }) as RegionDescriptionProposeResponse;
+  public async regionDescriptionPropose(image_id: string, context: DataLabel): Promise<Array<string>> {
+    if (context) { context = to_snake_case_obj(context) as unknown as DataLabel; }
+    const response = await this.fetch('region-description-propose', { image_id, context }) as RegionDescriptionProposeResponse;
     const raw = response.choices[0]!
     if (!raw.trim() || raw.trim() === "OK") {
       return [];
