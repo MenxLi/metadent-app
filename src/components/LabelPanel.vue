@@ -250,24 +250,23 @@
       const existingDescriptions = new Set(
         activeDataLabel.items.map((item) => item.description.trim()).filter(Boolean)
       );
-      const newItems = descriptions
-        .filter((description) => !existingDescriptions.has(description))
-        .map((description) => makeNewLabelItem(description, true));
 
-      if (newItems.length === 0) {
-        regionProposalProgressHint.show({
-          body: 'All proposed descriptions already exist in the label list.',
-          autoHideMs: 1600,
-        });
-        return;
-      }
+      let nInserted = 0;
+      descriptions.forEach((description) => {
+        if (existingDescriptions.has(description)) {
+          return;
+        }
+        const newItem = makeNewLabelItem(description, true);
+        if (nInserted === 0) {
+          focusOnLabelItem(newItem.id);
+        }
+        activeDataLabel.items.push(newItem);
+        activeLabel.value = newItem.id;
+        nInserted++;
+      });
 
-      activeDataLabel.items.push(...newItems);
-      activeLabel.value = newItems[0]!.id;
-      await nextTick();
-      focusOnLabelItem(newItems[0]!.id);
       regionProposalProgressHint.show({
-        body: `Inserted ${newItems.length} proposed label${newItems.length === 1 ? '' : 's'}.`,
+        body: `Inserted ${nInserted} proposed label${nInserted === 1 ? '' : 's'}.`,
         tone: 'success',
         autoHideMs: 1800,
       });

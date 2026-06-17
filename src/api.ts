@@ -596,7 +596,11 @@ export class AIService {
   /// Propose multiple potential items with region description for the given image
   public async regionDescriptionPropose(image_id: string): Promise<Array<string>> {
     const response = await this.fetch('region-description-propose', { image_id }) as RegionDescriptionProposeResponse;
-    return response.choices || [];
+    const raw = response.choices[0]!
+    if (!raw.trim() || raw.trim() === "OK") {
+      return [];
+    }
+    return raw.split("\n").map(line => line.trim()).filter(line => line.length > 0);
   }
 
   public async transcribe(audioBlob: Blob, audioExtension = 'webm'): Promise<string> {

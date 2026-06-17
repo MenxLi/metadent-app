@@ -65,7 +65,8 @@ const actionBtnDisabledClass = 'disabled:opacity-60 disabled:cursor-not-allowed'
   <div
     :class="
       'flex items-center gap-3 text-gray-700 px-4 py-2 rounded-xl shadow-sm' +
-      (model.id === activeContourId ? ' bg-cyan-50' : ' bg-white')"
+      (model.id === activeContourId ? ' bg-cyan-50' : model.contours.length > 0 ? ' bg-white' : ' bg-gray-100')
+    "
     @click="$emit('select', model.id)"
   >
 
