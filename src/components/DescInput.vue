@@ -16,12 +16,12 @@
         v-for="action in visibleActions"
         :key="action.key"
         :title="action.title"
-        :disabled="isBusy"
-        @click="runAction(action)"
+        :disabled="isActionDisabled(action.key)"
+        @click="runAction(action.key)"
         class="grid h-7 w-7 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <svg
-          v-if="activeActionKey === action.key"
+          v-if="activeActionKey === action.key || (action.key === 'transcript' && transcriptBusy)"
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
           width="12"
@@ -38,7 +38,40 @@
 
         <template v-else>
           <svg
-            v-if="action.key === 'regen'"
+            v-if="action.key === 'transcript' && transcriptRecording"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="12"
+            height="12"
+            class="mx-auto"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+          </svg>
+
+          <svg
+            v-else-if="action.key === 'transcript'"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="12"
+            height="12"
+            class="mx-auto"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <path d="M12 19v3" />
+            <path d="M8 22h8" />
+          </svg>
+
+          <svg
+            v-else-if="action.key === 'regen'"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             width="12"
@@ -69,11 +102,10 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useDataStore } from '@/stores/data';
 import { useComponentStore } from '@/stores/component';
 import { AIService } from '@/api';
-import { nextTick } from 'vue';
 import { useUserStore } from '@/stores/user';
 
 const modelValue = defineModel('modelValue', {
@@ -81,9 +113,16 @@ const modelValue = defineModel('modelValue', {
   default: ''
 })
 
+const props = defineProps<{
+  transcriptEnabled?: boolean
+  transcriptBusy?: boolean
+  transcriptRecording?: boolean
+}>()
+
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
   (e: 'enter'): void
+  (e: 'transcribe'): void
 }>()
 
 const dataStore = useDataStore()
@@ -106,52 +145,123 @@ const canUseOverallDescriptionImprovement = computed(() => {
     && Boolean(settings.aiBackendToken?.trim())
 })
 
+type DescActionKey = 'regen' | 'complexify' | 'simplify' | 'transcript'
+
 interface DescAction {
-  key: 'regen' | 'complexify' | 'simplify';
-  title: string;
-  run: () => Promise<void>;
+  key: DescActionKey
+  title: string
 }
 
-const visibleActions = computed<DescAction[]>(() => {
-  if (!isAiEnabled.value) {
-    return []
+const DESC_ACTIONS: Record<Exclude<DescActionKey, 'transcript'>, DescAction> = {
+  regen: {
+    key: 'regen',
+    title: 'Re-generate overall description',
+  },
+  complexify: {
+    key: 'complexify',
+    title: 'Complexify current description',
+  },
+  simplify: {
+    key: 'simplify',
+    title: 'Simplify current description',
+  },
+}
+
+const transcriptBusy = computed(() => Boolean(props.transcriptBusy))
+const transcriptRecording = computed(() => Boolean(props.transcriptRecording))
+const transcriptActionTitle = computed(() => {
+  if (transcriptBusy.value) {
+    return 'Transcribing audio'
   }
 
-  const actions: DescAction[] = [
-    {
-      key: 'regen',
-      title: 'Re-generate overall description',
-      run: autoGenerateOverallDescription,
-    },
-  ]
+  if (transcriptRecording.value) {
+    return 'Stop recording and transcribe'
+  }
+
+  return 'Start recording audio for overall description'
+})
+
+const visibleActions = computed<DescAction[]>(() => {
+  const actions: DescAction[] = []
+
+  if (isAiEnabled.value && props.transcriptEnabled) {
+    actions.push({
+      key: 'transcript',
+      title: transcriptActionTitle.value,
+    })
+  }
+
+  if (!isAiEnabled.value) {
+    return actions
+  }
+
+  actions.push(DESC_ACTIONS.regen)
 
   if (canUseOverallDescriptionImprovement.value) {
-    actions.push(
-      {
-        key: 'complexify',
-        title: 'Complexify current description',
-        run: () => enhanceOverallDescription('complexify'),
-      },
-      {
-        key: 'simplify',
-        title: 'Simplify current description',
-        run: () => enhanceOverallDescription('simplify'),
-      },
-    )
+    actions.push(DESC_ACTIONS.complexify, DESC_ACTIONS.simplify)
   }
 
   return actions
 })
 
-watch(() => dataStore.activeDataItem?.fileName, () => {
+function isActionDisabled(actionKey: DescActionKey) {
+  if (actionKey === 'transcript') {
+    return isBusy.value || transcriptBusy.value
+  }
+
+  return isBusy.value || transcriptBusy.value || transcriptRecording.value
+}
+
+function commitActionValue(nextValue: string) {
+  pushActionUndoSnapshot()
+  hasUserEditedSinceLastAction.value = false
+  emit('update:modelValue', nextValue)
+}
+
+function resetActionUndoState() {
   actionUndoStack.value = []
   hasUserEditedSinceLastAction.value = false
-})
+}
+
+function insertTranscriptAtCursor(text: string) {
+  const normalized = text.trim()
+  if (!normalized) {
+    return
+  }
+
+  const current = modelValue.value ?? ''
+  const textarea = textareaRef.value
+  if (!textarea) {
+    const separator = current && !current.endsWith(' ') ? ' ' : ''
+    commitActionValue(`${current}${separator}${normalized}`)
+    return
+  }
+
+  const selectionStart = textarea.selectionStart ?? current.length
+  const selectionEnd = textarea.selectionEnd ?? selectionStart
+  const before = current.slice(0, selectionStart)
+  const after = current.slice(selectionEnd)
+  const leading = before.length > 0 && !/\s$/.test(before) ? ' ' : ''
+  const trailing = after.length > 0 && !/^\s/.test(after) ? ' ' : ''
+  const insertText = `${leading}${normalized}${trailing}`
+  const nextValue = `${before}${insertText}${after}`
+
+  commitActionValue(nextValue)
+
+  const caret = before.length + insertText.length
+  requestAnimationFrame(() => {
+    textarea.focus({ preventScroll: true })
+    textarea.setSelectionRange(caret, caret)
+  })
+}
+
+watch(() => dataStore.activeDataItem?.fileName, resetActionUndoState)
 
 onMounted(() => {
   componentStore.descInputExpose = {
     focus,
-    autoGenerateOverallDescription
+    autoGenerateOverallDescription,
+    insertTranscriptAtCursor,
   }
 })
 onUnmounted(() => {
@@ -188,9 +298,7 @@ function applyGeneratedDescription(nextValue: string | null | undefined) {
   if (!normalized || normalized === current) {
     return
   }
-  pushActionUndoSnapshot()
-  hasUserEditedSinceLastAction.value = false
-  emit('update:modelValue', normalized)
+  commitActionValue(normalized)
 }
 
 function getActiveImageId(): string | null {
@@ -219,14 +327,29 @@ const focus = async () => {
   })
 }
 
-async function runAction(action: DescAction) {
-  if (isBusy.value) {
+async function runAction(actionKey: DescActionKey) {
+  if (isActionDisabled(actionKey)) {
     return
   }
 
-  activeActionKey.value = action.key
+  if (actionKey === 'transcript') {
+    emit('transcribe')
+    return
+  }
+
+  activeActionKey.value = actionKey
   try {
-    await action.run()
+    switch (actionKey) {
+      case 'regen':
+        await autoGenerateOverallDescription()
+        break
+      case 'complexify':
+        await enhanceOverallDescription('complexify')
+        break
+      case 'simplify':
+        await enhanceOverallDescription('simplify')
+        break
+    }
   } finally {
     activeActionKey.value = null
   }
@@ -267,5 +390,9 @@ async function enhanceOverallDescription(mode: 'complexify' | 'simplify') {
   }
 }
 
-defineExpose({ focus, autoGenerateOverallDescription })
+defineExpose({
+  focus,
+  autoGenerateOverallDescription,
+  insertTranscriptAtCursor,
+})
 </script>

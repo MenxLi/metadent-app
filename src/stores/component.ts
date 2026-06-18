@@ -1,16 +1,17 @@
-import { defineStore } from 'pinia';
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
 
-interface descInputExpose {
-  focus: () => Promise<void>;
-  autoGenerateOverallDescription: () => Promise<void>;
+export interface DescInputExpose {
+  focus: () => Promise<void>
+  autoGenerateOverallDescription: () => Promise<void>
+  insertTranscriptAtCursor: (text: string) => void
 }
 
 // global store for sharing component methods
 export const useComponentStore = defineStore('componentStore', () => {
-  const descInputExpose = null;
+  const descInputExpose = ref<DescInputExpose | null>(null)
+
   return {
     descInputExpose,
-  } as {
-    descInputExpose: descInputExpose | null;
   }
-});
+})

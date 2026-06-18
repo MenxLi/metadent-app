@@ -1,14 +1,15 @@
 <script lang="ts" setup>
-  import { ref, watch, nextTick, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue';
+  import { computed, ref, watch, nextTick, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue';
   import ImageLabeler from './ImageLabeler.vue';
   import ImageLabelerContourToggle from './ImageLabelerContourToggle.vue';
   import BooleanPillToggle from './BooleanPillToggle.vue';
   import LabelItemInput from './LabelItemInput.vue';
   import FloatingHint from './containers/FloatingHint.vue';
   import { useDataStore } from '@/stores/data';
+  import { useComponentStore } from '@/stores/component';
   import { useUiStateStore } from '@/stores/uistate';
   import { useUserStore } from '@/stores/user';
-  import { useWavRecorder } from '@/composables/useWavRecorder';
+  import { useTranscriptRecorder } from '@/composables/useTranscriptRecorder';
   import { useProgressHint } from '@/composables/useProgressHint';
   import DescInput from './DescInput.vue';
   import { AIService, type DataLabel, type LabelItem, FileLabelStatus } from '@/api';
@@ -22,6 +23,7 @@
   };
 
   const dataStore = useDataStore();
+  const componentStore = useComponentStore();
   const uiStateStore = useUiStateStore();
   const userStore = useUserStore();
   type LabelItemInputInstance = InstanceType<typeof LabelItemInput>;
@@ -29,8 +31,7 @@
   const unsavedChanges = ref(false);
   const contourVisibilityMode = ref<ContourVisibilityMode>('all');
   const loading = ref(false);
-  const transcriptBusyLabelId = ref<string | null>(null);
-  const transcriptRecordingLabelId = ref<string | null>(null);
+  const OVERALL_DESCRIPTION_TRANSCRIPT_TARGET = 'overall-description';
   const imageMaxW = ref(800);
   const regionReferringProgressHint = useProgressHint('Region Referring');
   const regionReferringProgress = regionReferringProgressHint.progress;
@@ -38,7 +39,9 @@
   const regionProposalProgress = regionProposalProgressHint.progress;
   const regionProposalBusy = ref(false);
   const labelItemRefs = ref<Record<string, LabelItemInputInstance | null>>({});
-  const wavRecorder = useWavRecorder();
+  const transcriptRecorder = useTranscriptRecorder();
+
+  const isTranscriptEnabled = computed(() => userStore.settings.enableAIHelpers && userStore.settings.aiFeatureSet.transcript);
 
   function cycleContourVisibilityMode() {
     contourVisibilityMode.value = nextModeMap[contourVisibilityMode.value];
@@ -132,30 +135,53 @@
     };
   }
 
-  async function handleLabelTranscript(label: LabelItem) {
-    if (
-      !userStore.settings.enableAIHelpers ||
-      !userStore.settings.aiFeatureSet.transcript
-    ) {
+  function showTranscriptError(context: string, error: unknown) {
+    console.error(`Error transcribing ${context}:`, error);
+    uiStateStore.msg.set(
+      error instanceof Error ? error.message : String(error),
+      'warning'
+    );
+  }
+
+  async function handleTranscriptRequest(
+    targetId: string,
+    options: {
+      startMessage: string
+      successMessage: string
+      errorContext: string
+      onRecordingStarted?: () => void
+      applyTranscript: (transcript: string) => void | Promise<void>
+    }
+  ) {
+    if (!isTranscriptEnabled.value) {
       return;
     }
 
     try {
-      if (wavRecorder.state.value === 'recording') {
-        if (transcriptRecordingLabelId.value !== label.id) {
-          uiStateStore.msg.set('Finish the current recording before starting another label transcript.', 'warning');
-          return;
-        }
+      const result = await transcriptRecorder.toggleTargetTranscript(targetId);
+      if (result.status === 'recording-started') {
+        options.onRecordingStarted?.();
+        uiStateStore.msg.set(options.startMessage, 'info');
+        return;
+      }
 
-        transcriptRecordingLabelId.value = null;
-        transcriptBusyLabelId.value = label.id;
-        uiStateStore.msg.set('Transcribing recorded audio...', 'info');
-        const { blob, extension } = await wavRecorder.stopRecording();
-        const transcript = (await new AIService().transcribe(blob, extension)).trim();
-        if (!transcript) {
-          throw new Error('Transcript result was empty.');
-        }
+      await options.applyTranscript(result.transcript);
+      uiStateStore.msg.set(options.successMessage, 'info');
+    }
+    catch (error) {
+      showTranscriptError(options.errorContext, error);
+    }
+  }
 
+  async function handleLabelTranscript(label: LabelItem) {
+    await handleTranscriptRequest(label.id, {
+      startMessage: 'Recording audio for label transcription. Click the mic again to stop.',
+      successMessage: 'Transcript inserted into label input.',
+      errorContext: 'label audio',
+      onRecordingStarted: () => {
+        activeLabel.value = label.id;
+      },
+      applyTranscript: async (transcript) => {
         const targetLabel = dataStore.activeDataLabel?.items.find(item => item.id === label.id);
         if (!targetLabel) {
           throw new Error('Target label no longer exists.');
@@ -167,40 +193,23 @@
 
         await nextTick();
         focusOnLabelItem(label.id);
-        uiStateStore.msg.set('Transcript inserted into label input.', 'info');
-        return;
-      }
+      },
+    });
+  }
 
-      transcriptRecordingLabelId.value = label.id;
-      activeLabel.value = label.id;
-      await wavRecorder.startRecording();
-      uiStateStore.msg.set('Recording audio for label transcription. Click the mic again to stop.', 'info');
-    }
-    catch (error) {
-      if (transcriptRecordingLabelId.value === label.id && wavRecorder.state.value === 'idle') {
-        transcriptRecordingLabelId.value = null;
-      }
-      console.error('Error transcribing label audio:', error);
-      uiStateStore.msg.set(
-        error instanceof Error ? error.message : String(error),
-        'warning'
-      );
-    }
-    finally {
-      if (wavRecorder.state.value !== 'recording') {
-        transcriptBusyLabelId.value = null;
-      }
-    }
+  async function handleDescTranscript() {
+    await handleTranscriptRequest(OVERALL_DESCRIPTION_TRANSCRIPT_TARGET, {
+      startMessage: 'Recording audio for overall description. Click the mic again to stop.',
+      successMessage: 'Transcript inserted into overall description.',
+      errorContext: 'overall description audio',
+      applyTranscript: (transcript) => {
+        componentStore.descInputExpose?.insertTranscriptAtCursor(transcript);
+      },
+    });
   }
 
   async function cancelTranscriptRecording() {
-    if (wavRecorder.state.value === 'idle') {
-      return;
-    }
-
-    await wavRecorder.cancelRecording();
-    transcriptRecordingLabelId.value = null;
-    transcriptBusyLabelId.value = null;
+    await transcriptRecorder.cancelRecording();
   }
 
   function newLabelItem() {
@@ -575,7 +584,7 @@
       window.removeEventListener('keydown', skipHandler);
       window.removeEventListener('keydown', tabHandler);
       cancelTranscriptRecording();
-      wavRecorder.dispose();
+      transcriptRecorder.dispose();
       regionReferringProgressHint.dispose();
       regionProposalProgressHint.dispose();
     });
@@ -614,6 +623,10 @@
     <DescInput
       v-if="dataStore.activeDataItem && dataStore.activeDataLabel"
       v-model="dataStore.activeDataLabel.overallDescription"
+      :transcript-enabled="isTranscriptEnabled"
+      :transcript-busy="transcriptRecorder.isBusyForTarget(OVERALL_DESCRIPTION_TRANSCRIPT_TARGET)"
+      :transcript-recording="transcriptRecorder.isRecordingForTarget(OVERALL_DESCRIPTION_TRANSCRIPT_TARGET)"
+      @transcribe="handleDescTranscript"
       @enter="if (dataStore.activeDataLabel!.items.length > 0) {
         const id = dataStore.activeDataLabel!.items[0]!.id;
         focusOnLabelItem(id)
@@ -665,9 +678,9 @@
           :ref="bindLabelItemRef(label.id)"
           v-model="dataStore.activeDataLabel.items[index]!"
           :active-contour-id="activeLabel"
-          :transcript-enabled="userStore.settings.enableAIHelpers && userStore.settings.aiFeatureSet.transcript"
-          :transcript-busy="transcriptBusyLabelId === label.id"
-          :transcript-recording="transcriptRecordingLabelId === label.id"
+          :transcript-enabled="isTranscriptEnabled"
+          :transcript-busy="transcriptRecorder.isBusyForTarget(label.id)"
+          :transcript-recording="transcriptRecorder.isRecordingForTarget(label.id)"
           @enter="handleRegionReferring({ label, labels: dataStore.activeDataLabel!.items })"
           @transcribe="handleLabelTranscript(label)"
           @move-up="handleMoveLabelUp"
