@@ -60,3 +60,25 @@ def mask_to_polygons(mask: np.ndarray) -> list[Polygon]:
             continue
         polygons.append(np.asarray(pts, dtype=np.float64) / denom)  # type: ignore
     return polygons
+
+def simplify_polygon(
+  polygon: Polygon, 
+  epsilon: float = 0.5,
+  resolution: int = 512, 
+  unify_orientation: bool = True, 
+  unify_start_point: bool = True, 
+  ) -> Polygon:
+    """Simplify a polygon using opencv approxPolyDP (Ramer-Douglas-Peucker algorithm)."""
+    if polygon.shape[0] < 3:
+        return polygon
+    pts = quantize_polygon(polygon, resolution)
+    if unify_orientation and cv.isContourConvex(pts):
+        # OpenCV's approxPolyDP may return different results for clockwise vs counter-clockwise contours.
+        # To ensure consistent results, we can unify the orientation of the contour.
+        if cv.contourArea(pts) < 0:
+            pts = pts[::-1]
+    if unify_start_point:
+        start_idx = np.argmin(pts.sum(axis=1))  # Start from the point with the smallest (x+y)
+        pts = np.roll(pts, -start_idx, axis=0)
+    simplified = cv.approxPolyDP(pts, epsilon, closed=True)
+    return simplified.squeeze(1).astype(np.float64) / resolution

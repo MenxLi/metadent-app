@@ -51,6 +51,7 @@
 			.viewer {
 				display: flex;
 				flex-direction: column;
+				height: calc(100vh - 40px);
 				min-height: 70vh;
 				overflow: hidden;
 			}
@@ -79,13 +80,16 @@
 				padding: 14px;
 				flex: 1;
 				display: flex;
+				min-height: 0;
 			}
 
 			.canvas-wrap {
 				width: 100%;
+				height: 100%;
+				min-height: 0;
 				background: #111;
 				border-radius: 10px;
-				overflow: auto;
+				overflow: hidden;
 				border: 1px solid #26231f;
 				display: grid;
 				place-items: center;
@@ -94,7 +98,9 @@
 			.canvas-stack {
 				position: relative;
 				width: max-content;
+				height: max-content;
 				max-width: 100%;
+				max-height: 100%;
 				line-height: 0;
 			}
 
@@ -102,6 +108,8 @@
 			.canvas-stack canvas {
 				display: block;
 				max-width: 100%;
+				max-height: 100%;
+				width: auto;
 				height: auto;
 			}
 
@@ -601,8 +609,29 @@
 				}
 
 				function resizeCanvasToImage() {
+					const wrap = document.querySelector(".canvas-wrap");
 					const width = image.naturalWidth || payload.image.width;
 					const height = image.naturalHeight || payload.image.height;
+
+					if (wrap) {
+						const maxWidth = wrap.clientWidth;
+						const maxHeight = wrap.clientHeight;
+						if (maxWidth > 0 && maxHeight > 0 && width > 0 && height > 0) {
+							const scale = Math.min(maxWidth / width, maxHeight / height);
+							const fittedWidth = Math.max(1, Math.floor(width * scale));
+							const fittedHeight = Math.max(1, Math.floor(height * scale));
+							const stack = document.getElementById("canvas-stack");
+							if (stack) {
+								stack.style.width = fittedWidth + "px";
+								stack.style.height = fittedHeight + "px";
+							}
+							image.style.width = fittedWidth + "px";
+							image.style.height = fittedHeight + "px";
+							canvas.style.width = fittedWidth + "px";
+							canvas.style.height = fittedHeight + "px";
+						}
+					}
+
 					canvas.width = width;
 					canvas.height = height;
 					drawAll();
@@ -668,6 +697,8 @@
 				} else {
 					image.addEventListener("load", resizeCanvasToImage);
 				}
+
+				window.addEventListener("resize", resizeCanvasToImage);
 			})();
 		</script>
 	</body>
