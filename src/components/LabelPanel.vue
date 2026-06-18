@@ -713,7 +713,7 @@
         +
       </button>
       <button
-        v-if="userStore.settings.enableAIHelpers && userStore.settings.aiFeatureSet.regionDescriptionProposeOnClick"
+        v-if="userStore.settings.enableAIHelpers && userStore.settings.aiFeatureSet.regionDescriptionProposal"
         @click="proposeRegionDescriptions"
         :disabled="regionProposalBusy"
         class="h-full w-15 rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-sky-700 hover:bg-gray-50 shadow-sm flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"

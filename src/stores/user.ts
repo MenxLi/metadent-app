@@ -9,7 +9,7 @@ interface UserSettingsAiFeatureSet {
   overallDescriptionOnLoad: boolean;
   overallDescriptionImprovement: boolean;
   regionDescriptionOnDraw: boolean;
-  regionDescriptionProposeOnClick: boolean;
+  regionDescriptionProposal: boolean;
   regionRefineOnDoubleClick: boolean;
   regionReferringOnEnter: boolean;
   transcript: boolean;
@@ -48,7 +48,7 @@ function defaultSettings(): UserSettings {
       overallDescriptionOnLoad: true,
       overallDescriptionImprovement: true,
       regionDescriptionOnDraw: true,
-      regionDescriptionProposeOnClick: true,
+      regionDescriptionProposal: true,
       regionRefineOnDoubleClick: true,
       regionReferringOnEnter: true,
       transcript: true,
