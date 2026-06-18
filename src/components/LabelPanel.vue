@@ -213,6 +213,39 @@
     });
   }
 
+  function moveLabelItemByOffset(id: string, offset: -1 | 1) {
+    const items = dataStore.activeDataLabel?.items;
+    if (!items || items.length < 2) {
+      return;
+    }
+
+    const fromIndex = items.findIndex((item) => item.id === id);
+    if (fromIndex === -1) {
+      return;
+    }
+
+    const toIndex = fromIndex + offset;
+    if (toIndex < 0 || toIndex >= items.length) {
+      return;
+    }
+
+    const [moved] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, moved!);
+    activeLabel.value = id;
+
+    nextTick(() => {
+      focusOnLabelItem(id);
+    });
+  }
+
+  function handleMoveLabelUp(id: string) {
+    moveLabelItemByOffset(id, -1);
+  }
+
+  function handleMoveLabelDown(id: string) {
+    moveLabelItemByOffset(id, 1);
+  }
+
   async function proposeRegionDescriptions() {
     const fileName = dataStore.activeDataItem?.fileName;
     const activeDataLabel = dataStore.activeDataLabel;
@@ -637,6 +670,8 @@
           :transcript-recording="transcriptRecordingLabelId === label.id"
           @enter="handleRegionReferring({ label, labels: dataStore.activeDataLabel!.items })"
           @transcribe="handleLabelTranscript(label)"
+          @move-up="handleMoveLabelUp"
+          @move-down="handleMoveLabelDown"
           @delete="(id: string) => {
             const itemIndex = dataStore.activeDataLabel!.items.findIndex(item => item.id === id);
             if (itemIndex !== -1) {

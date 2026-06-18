@@ -19,6 +19,8 @@ const emit = defineEmits<{
   (e: 'select-previous', ): void
   (e: 'enter', ): void
   (e: 'transcribe', id: string): void
+  (e: 'move-up', id: string): void
+  (e: 'move-down', id: string): void
 }>()
 
 function toggleLowConfidence() {
@@ -49,6 +51,14 @@ function deleteLabel() {
   emit('delete', model.value.id)
 }
 
+function moveUp() {
+  emit('move-up', model.value.id)
+}
+
+function moveDown() {
+  emit('move-down', model.value.id)
+}
+
 function focusInput() {
   inputRef.value?.focus()
 }
@@ -69,7 +79,6 @@ const actionBtnDisabledClass = 'disabled:opacity-60 disabled:cursor-not-allowed'
     "
     @click="$emit('select', model.id)"
   >
-
     <div class="flex gap-1">
       <div class="flex flex-col items-center gap-1 self-stretch justify-center w-2" aria-hidden="true">
         <span
@@ -84,12 +93,57 @@ const actionBtnDisabledClass = 'disabled:opacity-60 disabled:cursor-not-allowed'
         ></span>
       </div>
 
+      <!-- ↕ Reorder label -->
+      <div class="flex flex-col gap-0 -mr-1" aria-label="Reorder label">
+        <button
+          @click.stop="moveUp"
+          title="Move label up"
+          class="h-4 w-5 rounded-t border-t border-r border-l border-slate-200 bg-slate-50/95 text-slate-500 inline-flex items-center justify-center hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200"
+          tabindex="-1"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="h-2 w-2"
+            aria-hidden="true"
+          >
+            <path d="M2.5 7.5 6 4l3.5 3.5" />
+          </svg>
+        </button>
+        <button
+          @click.stop="moveDown"
+          title="Move label down"
+          class="h-3.5 w-5 rounded-b  border-b border-r border-l border-slate-200 bg-slate-50/95 text-slate-500 inline-flex items-center justify-center hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200"
+          tabindex="-1"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="h-2 w-2"
+            aria-hidden="true"
+          >
+            <path d="M2.5 4.5 6 8l3.5-3.5" />
+          </svg>
+        </button>
+      </div>
+
       <!-- ⚠️ Low confidence toggle -->
       <button @click="toggleLowConfidence" title="Toggle low confidence" class="text-xl w-5 cursor-pointer" tabindex="-1">
         <template v-if="model.lowConfidence">❓</template>
         <template v-else>✔</template>
       </button>
     </div>
+
 
     <!-- 🎨 Color swatch -->
     <div
@@ -124,67 +178,72 @@ const actionBtnDisabledClass = 'disabled:opacity-60 disabled:cursor-not-allowed'
       }"
     />
 
-    <button
-      v-if="props.transcriptEnabled"
-      @click.stop="$emit('transcribe', model.id)"
-      :disabled="props.transcriptBusy"
-      :title="props.transcriptBusy ? 'Transcribing audio' : props.transcriptRecording ? 'Stop recording and transcribe' : 'Start recording audio for this label'"
-      :class="[
-        actionBtnBaseClass,
-        actionBtnDisabledClass,
-        props.transcriptRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700',
-        props.transcriptBusy ? 'disabled:bg-emerald-300' : ''
-      ]"
-      tabindex="-1"
+    <div
+      class="flex gap-2 ml-2"
+      @click.stop
     >
-      <span v-if="props.transcriptBusy" class="text-sm">...</span>
-      <svg
-        v-else-if="props.transcriptRecording"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        class="h-3.5 w-3.5"
-        aria-hidden="true"
+      <button
+        v-if="props.transcriptEnabled"
+        @click.stop="$emit('transcribe', model.id)"
+        :disabled="props.transcriptBusy"
+        :title="props.transcriptBusy ? 'Transcribing audio' : props.transcriptRecording ? 'Stop recording and transcribe' : 'Start recording audio for this label'"
+        :class="[
+          actionBtnBaseClass,
+          actionBtnDisabledClass,
+          props.transcriptRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700',
+          props.transcriptBusy ? 'disabled:bg-emerald-300' : ''
+        ]"
+        tabindex="-1"
       >
-        <rect x="6" y="6" width="12" height="12" rx="2" />
-      </svg>
-      <svg
-        v-else
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="h-4 w-4"
-        aria-hidden="true"
+        <span v-if="props.transcriptBusy" class="text-sm">...</span>
+        <svg
+          v-else-if="props.transcriptRecording"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          class="h-3.5 w-3.5"
+          aria-hidden="true"
+        >
+          <rect x="6" y="6" width="12" height="12" rx="2" />
+        </svg>
+        <svg
+          v-else
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          <path d="M12 19v3" />
+          <path d="M8 22h8" />
+        </svg>
+      </button>
+
+      <!-- 🧹 Clear contours -->
+      <button
+        @click="clearContours"
+        title="Clear contours"
+        :class="[actionBtnBaseClass, 'bg-blue-600 hover:bg-blue-700']"
+        tabindex="-1"
       >
-        <path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z" />
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-        <path d="M12 19v3" />
-        <path d="M8 22h8" />
-      </svg>
-    </button>
+        🧹
+      </button>
 
-    <!-- 🧹 Clear contours -->
-    <button
-      @click="clearContours"
-      title="Clear contours"
-      :class="[actionBtnBaseClass, 'bg-blue-600 hover:bg-blue-700']"
-      tabindex="-1"
-    >
-      🧹
-    </button>
-
-    <!-- 🗑️ Delete label -->
-    <button
-      @click="deleteLabel"
-      title="Delete label"
-      :class="[actionBtnBaseClass, 'bg-red-500 hover:bg-red-600']"
-      tabindex="-1"
-    >
-      🗑️
-    </button>
+      <!-- 🗑️ Delete label -->
+      <button
+        @click="deleteLabel"
+        title="Delete label"
+        :class="[actionBtnBaseClass, 'bg-red-500 hover:bg-red-600']"
+        tabindex="-1"
+      >
+        🗑️
+      </button>
+    </div>
   </div>
 </template>
