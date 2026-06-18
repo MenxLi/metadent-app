@@ -5,7 +5,7 @@
       :key="item.fileName"
       @click="handleClick(item)"
       :class="(select?.fileName === item.fileName ? 'bg-blue-100':'bg-white') +
-      ' cursor-pointer py-2 px-2 flex flex-col items-center transition-transform w-fit h-fit [box-shadow:0_0_0_0.1px_#9999,inset_0_0_0_0.1px_#9999]' +
+      ' cursor-pointer py-2 px-2 flex flex-col gap-1 items-center transition-transform w-fit h-fit [box-shadow:0_0_0_0.1px_#9999,inset_0_0_0_0.1px_#9999]' +
       ' hover:scale-102 hover:bg-blue-50 hover:[box-shadow:0_0_0_0.5px_#99f9,inset_0_0_0_0.5px_#99f9] hover:rounded-xs'
       "
     >
@@ -14,9 +14,9 @@
         :alt="item.fileName"
         class="w-24 h-24 object-cover rounded-sm mb-2"
       />
-      <div class="text-gray-700 text-xs font-semibold">{{ item.fileName }}</div>
-      <div class="text-gray-500 text-sm mt-1">
-        {{ statusEmojiMap[item.status] }} {{ item.status }}
+      <div class="flex items-center gap-1">
+        <div class="text-gray-700 text-xs font-semibold">{{ item.identifier }}</div>
+        <div class="text-gray-500 text-xs ml-2" :title="item.status"> {{ statusEmojiMap[item.status] }} </div>
       </div>
     </div>
   </div>

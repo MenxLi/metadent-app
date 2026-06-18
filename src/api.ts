@@ -21,6 +21,7 @@ export interface DataItem {
   imageUrl: string;     // full image url
   thumbUrl: string;     // full thumbnail url
   fileName: string;     // file name in labeling fs
+  identifier: string;   // file name minus extension, used for display and as id in label items
   status: FileLabelStatus;
 }
 
@@ -338,6 +339,7 @@ export class BackendCalls {
         imageUrl: wrapUrl(fileUrl, { token: this.connector.config.token }),
         thumbUrl: wrapUrl(fileUrl, { thumb: "true", token: this.connector.config.token }),
         fileName: fnames[i]!,
+        identifier: fnames[i]!.split(".").slice(0, -1).join("."),
         status: fileStatus[i]!,
       };
     });
