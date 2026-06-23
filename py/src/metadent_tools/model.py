@@ -64,6 +64,9 @@ class DataLabel(BaseSchema):
     crop: Optional[tuple[float, float, float, float]] = None     # [x, y, w, h]
     abnormality_exhausted: bool = True
 
+    def __bool__(self):
+        return bool(self.items) or bool(self.overall_description.strip())
+
     def add_item(self) -> LabelItem:
         it = LabelItem(
             id=str(uuid.uuid4()),
