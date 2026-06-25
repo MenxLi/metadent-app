@@ -79,4 +79,4 @@ def simplify_polygon(
         start_idx = np.argmin(pts.sum(axis=1))  # Start from the point with the smallest (x+y)
         pts = np.roll(pts, -start_idx, axis=0)
     simplified = cv.approxPolyDP(pts, epsilon, closed=True)
-    return simplified.squeeze(1).astype(np.float64) / resolution
+    return simplified.squeeze(1).astype(np.float64) / resolution    # type: ignore

@@ -3,7 +3,18 @@ import { computed } from 'vue'
 
 const changelogEntries = [
   {
-    version: 'DEV',
+    version: 'DEV-0623',
+    date: '2026-06-23',
+    title: 'AI, contour, and backend improvements',
+    changes: [
+      'Expanded the chat workflow with predefined queries, conversation trimming, transcript capture, and more reliable overall-description generation.',
+      'Improved contour editing and refinement with hover states, deletion, simplification, reorder controls, and active-label handling.',
+      'Added and polished the Python backend API, docs, and data export/copy utilities, plus small UI and labeling fixes.',
+      'Added a comparison view for side-by-side label review and comparison.',
+    ],
+  },
+  {
+    version: 'DEV-0509',
     date: '2026-05-09',
     title: 'Polish and workflow fixes',
     changes: [
