@@ -64,8 +64,9 @@ class DataLabel(BaseSchema):
     crop: Optional[tuple[float, float, float, float]] = None     # [x, y, w, h]
     abnormality_exhausted: bool = True
 
-    def __bool__(self):
-        return bool(self.items) or bool(self.overall_description.strip())
+    def is_empty(self) -> bool:
+        """Return True if the label is empty (no items and no overall description)."""
+        return not self.items and not self.overall_description.strip()
 
     def add_item(self) -> LabelItem:
         it = LabelItem(
