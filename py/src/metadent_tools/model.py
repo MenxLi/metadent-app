@@ -4,7 +4,7 @@ import json
 from io import BytesIO
 from PIL import Image
 from contextlib import contextmanager
-from typing import Optional, Literal, Callable, Annotated, TypeAlias
+from typing import Optional, Literal, Callable, Annotated, TypeAlias, Sequence
 import uuid, random
 import datetime
 
@@ -198,6 +198,18 @@ class DataPoint:
         """image size as (width, height)"""
         return (self.info.width, self.info.height)
     
+    def with_label(self, skip_if_exists: bool = True):
+        """ Initialize the label field if not exists.  """
+        if self.label is not None and skip_if_exists:
+            return self
+        self.label = DataLabel(
+            annotators=[],
+            overall_description="",
+            items=[], 
+            crop=None
+        )
+        return self
+    
     def with_skip(self, reason: str, skip_by: str = "", skip_time: Optional[str] = None ):
         if skip_time is None:
             local_zone = datetime.datetime.now().astimezone().tzinfo
@@ -213,17 +225,45 @@ class DataPoint:
         self.lock = DataLockFlag(locked_by=locked_by, lock_time=lock_time, lock_expire=lock_expire)
         return self
     
-    def with_label(self, skip_if_exists: bool = True):
-        """ Initialize the label field if not exists.  """
-        if self.label is not None and skip_if_exists:
-            return self
-        self.label = DataLabel(
-            annotators=[],
-            overall_description="",
-            items=[], 
-            crop=None
-        )
-        return self
+    @contextmanager
+    def lock_guard(
+        self, 
+        persist_to: Optional[Database] = None, 
+        locked_by: Optional[str] = None,
+        lock_expire_delta: datetime.timedelta = datetime.timedelta(hours=1), 
+        force_takeover: bool = False,
+        ):
+        """
+        A context manager to guard the editing of the data point.
+        This will set the lock field of the data point, and optionally dump the data point to the database before and after editing.
+        Use it like this:
+        ```python
+        with data_point.lock_guard(persist_to=conn, locked_by="user1") as dp:
+
+            # edit dp here
+            ...
+
+            # dump the updated data point to the database
+            conn.dump(dp)  
+
+        """
+        if locked_by is None or locked_by.strip() == "":
+            locked_by = f"api-{uuid.uuid4()}"
+
+        if self.lock is not None and not self.lock.is_expired() and self.lock.locked_by != locked_by and not force_takeover:
+            raise PermissionError(f"Data point {self.identifier} is locked by {self.lock.locked_by}, cannot edit.")
+        
+        prev_lock = self.lock
+        try:
+            self.with_lock(locked_by=locked_by, lock_expire_delta=lock_expire_delta)
+            if persist_to is not None:
+                persist_to.dump_meta(self, fields=['lock'])
+            yield self
+        except: raise
+        finally:
+            self.lock = prev_lock
+            if persist_to is not None:
+                persist_to.dump_meta(self, fields=['lock'])
     
     def apply_crop(self):
         """
@@ -279,7 +319,7 @@ def connect(driver: DriverAbstract):
     finally: 
         driver._maybe_disconnect()
 
-
+_MetaFieldT = Literal["info", "label", "skip", "lock"]
 @dataclass
 class Database:
     driver: DriverAbstract
@@ -326,7 +366,12 @@ class Database:
 
         self.dump_meta(data_point, validate=False)
     
-    def dump_meta(self, data_point: DataPoint, validate: bool = True):
+    def dump_meta(
+        self, 
+        data_point: DataPoint, 
+        validate: bool = True, 
+        fields: Sequence[_MetaFieldT] | Literal["all"] = "all"
+        ):
         """
         Dump only the meta info of a data point to the database, without touching the image file.
         This is useful when you want to update the label or skip info of a data point without changing the image.
@@ -338,18 +383,9 @@ class Database:
             if not self.driver.exists(image_path):
                 raise FileNotFoundError(f"Image file not found for data_id: {identifier}, expected at: {image_path}")
 
-        info_path = self.driver.meta_dir / identifier / "info.json"
-        label_path = self.driver.meta_dir / identifier / "label.json"
-        skip_path = self.driver.meta_dir / identifier / "skip.json"
-        lock_path = self.driver.meta_dir / identifier / "lock.json"
-
-        self.driver.write_json(info_path, data_point.info.model_dump(by_alias=True))
-
         # check if lock has expired
         if data_point.lock is not None:
-            local_zone = datetime.datetime.now().astimezone().tzinfo
-            lock_expire_time = datetime.datetime.fromisoformat(data_point.lock.lock_expire)
-            if lock_expire_time < datetime.datetime.now(tz=local_zone):
+            if data_point.lock.is_expired():
                 data_point.lock = None
 
         def write_or_delete(path, obj: Optional[BaseSchema]):
@@ -358,6 +394,16 @@ class Database:
             else:
                 self.driver.delete_if_exists(path)
 
-        write_or_delete(label_path, data_point.label)
-        write_or_delete(skip_path, data_point.skip)
-        write_or_delete(lock_path, data_point.lock)
+        info_path = self.driver.meta_dir / identifier / "info.json"
+        label_path = self.driver.meta_dir / identifier / "label.json"
+        skip_path = self.driver.meta_dir / identifier / "skip.json"
+        lock_path = self.driver.meta_dir / identifier / "lock.json"
+
+        if fields == "all" or "info" in fields:
+            self.driver.write_json(info_path, data_point.info.model_dump(by_alias=True))
+        if fields == "all" or "label" in fields:
+            write_or_delete(label_path, data_point.label)
+        if fields == "all" or "skip" in fields:
+            write_or_delete(skip_path, data_point.skip)
+        if fields == "all" or "lock" in fields:
+            write_or_delete(lock_path, data_point.lock)
