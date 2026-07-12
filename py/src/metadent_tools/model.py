@@ -225,46 +225,6 @@ class DataPoint:
         self.lock = DataLockFlag(locked_by=locked_by, lock_time=lock_time, lock_expire=lock_expire)
         return self
     
-    @contextmanager
-    def lock_guard(
-        self, 
-        persist_to: Optional[Database] = None, 
-        locked_by: Optional[str] = None,
-        lock_expire_delta: datetime.timedelta = datetime.timedelta(hours=1), 
-        force_takeover: bool = False,
-        ):
-        """
-        A context manager to guard the editing of the data point.
-        This will set the lock field of the data point, and optionally dump the data point to the database before and after editing.
-        Use it like this:
-        ```python
-        with data_point.lock_guard(persist_to=conn, locked_by="user1") as dp:
-
-            # edit dp here
-            ...
-
-            # dump the updated data point to the database
-            conn.dump(dp)  
-
-        """
-        if locked_by is None or locked_by.strip() == "":
-            locked_by = f"api-{uuid.uuid4()}"
-
-        if self.lock is not None and not self.lock.is_expired() and self.lock.locked_by != locked_by and not force_takeover:
-            raise PermissionError(f"Data point {self.identifier} is locked by {self.lock.locked_by}, cannot edit.")
-        
-        prev_lock = self.lock
-        try:
-            self.with_lock(locked_by=locked_by, lock_expire_delta=lock_expire_delta)
-            if persist_to is not None:
-                persist_to.dump_meta(self, fields=['lock'])
-            yield self
-        except: raise
-        finally:
-            self.lock = prev_lock
-            if persist_to is not None:
-                persist_to.dump_meta(self, fields=['lock'])
-    
     def apply_crop(self):
         """
         If crop label is available, apply the crop to the current data point, 
@@ -351,6 +311,42 @@ class Database:
             image_bytes = self.driver.read_bytes(image_path)
             return Image.open(BytesIO(image_bytes)).convert("RGB")
         return DataPoint(identifier=identifier, load_image=load_image, info=info, label=label, skip=skipped, lock=lock)
+    
+    @contextmanager
+    def load_locked(
+        self, 
+        identifier: str, 
+        locked_by: Optional[str] = None,
+        lock_expire_delta: datetime.timedelta = datetime.timedelta(hours=1),
+        force_takeover: bool = False
+        ):
+        """
+        Load a data point and guard it with a lock.
+        If the data point is already locked by another user, a PermissionError will be raised.
+
+        Typically used like this:
+        ```python
+        with db.load_locked(identifier="image_001", locked_by="user1") as dp:
+            # edit dp here
+            ...
+
+            # dump the updated data point to the database
+            db.dump(dp)  
+        ```
+        """
+        if locked_by is None or locked_by.strip() == "":
+            locked_by = f"api-{uuid.uuid4()}"
+        dp = self.load(identifier)
+        if dp.lock is not None and not dp.lock.is_expired() and dp.lock.locked_by != locked_by and not force_takeover:
+            raise PermissionError(f"Data point {dp.identifier} is locked by {dp.lock.locked_by}, cannot edit.")
+        try:
+            dp.with_lock(locked_by=locked_by, lock_expire_delta=lock_expire_delta)
+            self.dump_meta(dp, fields=['lock'])
+            yield dp
+        except: raise
+        finally:
+            dp.lock = None
+            self.dump_meta(dp, fields=['lock'])
     
     def dump(self, data_point: DataPoint):
         """
