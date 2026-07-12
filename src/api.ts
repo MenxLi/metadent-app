@@ -611,6 +611,12 @@ export class AIService {
     return response.text || ''
   }
 
+  public async startAutoLabelJob(image_ids: string[]): Promise<"OK"> {
+    const imageIds = image_ids.join(',');
+    await this.fetch('label-jobs/start', { image_ids: imageIds });
+    return "OK";
+  }
+
   public async chatWithAgent(request: AIChatRequest): Promise<string> {
     try {
       return await this.getOpenAIClient().complete(request);

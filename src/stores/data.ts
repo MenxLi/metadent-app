@@ -1,6 +1,6 @@
 import { ref, type Ref, nextTick } from 'vue'
 import { defineStore } from 'pinia'
-import { type DataItem, type DataInfo, type LockStatus, type DataLabel, FileLabelStatus} from '@/api'
+import { AIService, type DataItem, type DataInfo, type LockStatus, type DataLabel, FileLabelStatus} from '@/api'
 import { useUserStore } from './user'
 import { useUiStateStore } from './uistate'
 import { useComponentStore } from './component'
@@ -259,6 +259,21 @@ export const useDataStore = defineStore('dataStore', () => {
     }
   }
 
+  async function startAutoLabelCurrentPage(): Promise<number> {
+    const imageIds = [...new Set(
+      dataItems.value
+        .map((item) => item.identifier.trim())
+        .filter(Boolean)
+    )]
+
+    if (!imageIds.length) {
+      return 0
+    }
+
+    await new AIService().startAutoLabelJob(imageIds)
+    return imageIds.length
+  }
+
   // watch(() => uiStateStore.pageIndex, updateIndex)
   return {
     dataItems, activeDataInfo, activeDataItem, activeDataLabel, activeDataLock,
@@ -271,6 +286,7 @@ export const useDataStore = defineStore('dataStore', () => {
     unskipActiveData,
     refreshActiveDataItem,
     loadNextDataItem,
+    startAutoLabelCurrentPage,
     resetActiveData
   }
 

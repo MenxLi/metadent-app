@@ -6,6 +6,7 @@ import { type UserInfo } from '@/api'
 import { useUiStateStore } from './uistate'
 
 interface UserSettingsAiFeatureSet {
+  autoLabelCurrentPage: boolean;
   overallDescriptionOnLoad: boolean;
   overallDescriptionImprovement: boolean;
   regionDescriptionOnDraw: boolean;
@@ -45,6 +46,7 @@ function defaultSettings(): UserSettings {
     aiBackendToken: "",
     aiModelName: "",
     aiFeatureSet: {
+      autoLabelCurrentPage: true,
       overallDescriptionOnLoad: true,
       overallDescriptionImprovement: true,
       regionDescriptionOnDraw: true,

@@ -158,6 +158,12 @@ function saveSettings() {
             <label class="flex items-center gap-2 text-gray-700">
               <input
                 type="checkbox" class="w-4 h-4"
+                v-model="aiFeatureSet.autoLabelCurrentPage" />
+              Auto label current page
+            </label>
+            <label class="flex items-center gap-2 text-gray-700">
+              <input
+                type="checkbox" class="w-4 h-4"
                 v-model="aiFeatureSet.overallDescriptionOnLoad" />
               Overall description on image load
             </label>
