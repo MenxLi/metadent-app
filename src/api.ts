@@ -167,6 +167,7 @@ export class BackendCalls {
     const skipFile = metaDir + "skip.json";
     const skipInfo = {
       reason: reason,
+      skipBy: useUserStore().user?.username ?? "",
       skipTime: new Date().toISOString(),
     }
     await this.connector.putJson(skipFile, skipInfo, {

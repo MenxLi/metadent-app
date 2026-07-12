@@ -6,6 +6,7 @@ from PIL import Image
 from contextlib import contextmanager
 from typing import Optional, Literal, Callable, Annotated, TypeAlias
 import uuid, random
+import datetime
 
 from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict
@@ -108,8 +109,20 @@ class DataInfo(BaseSchema):
     height: int
 
 class DataSkipFlag(BaseSchema):
+    skip_by: str = ""   # for backward compatibility
     reason: str
     skip_time: str
+
+# time in isoformat string, e.g. "2023-01-01T12:00:00+08:00"
+class DataLockFlag(BaseSchema):
+    locked_by: str
+    lock_time: str
+    lock_expire: str
+
+    def is_expired(self) -> bool:
+        local_zone = datetime.datetime.now().astimezone().tzinfo
+        lock_expire_time = datetime.datetime.fromisoformat(self.lock_expire)
+        return lock_expire_time < datetime.datetime.now(tz=local_zone)
 
 @dataclass
 class DataPoint:
@@ -118,6 +131,7 @@ class DataPoint:
     info: DataInfo
     label: Optional[DataLabel] = None
     skip: Optional[DataSkipFlag] = None
+    lock: Optional[DataLockFlag] = None
 
     @staticmethod
     def from_bare_image(
@@ -176,19 +190,27 @@ class DataPoint:
             load_image=load_image,
             info=info,
             label=self.label.model_copy() if self.label else None,
-            skip=self.skip.model_copy() if self.skip else None
+            skip=self.skip.model_copy() if self.skip else None,
+            lock=self.lock.model_copy() if self.lock else None
         )
 
     def image_size(self) -> tuple[int, int]:
         """image size as (width, height)"""
         return (self.info.width, self.info.height)
     
-    def set_skip(self, reason: str, skip_time: Optional[str] = None):
-        import datetime
+    def with_skip(self, reason: str, skip_by: str = "", skip_time: Optional[str] = None ):
         if skip_time is None:
             local_zone = datetime.datetime.now().astimezone().tzinfo
             skip_time = datetime.datetime.now(tz=local_zone).isoformat()
-        self.skip = DataSkipFlag(reason=reason, skip_time=skip_time)
+        self.skip = DataSkipFlag(reason=reason, skip_time=skip_time, skip_by=skip_by)
+        return self
+    
+    def with_lock(self, locked_by: str, lock_expire_delta: datetime.timedelta = datetime.timedelta(hours=1)):
+        tz = datetime.datetime.now().astimezone().tzinfo
+        now = datetime.datetime.now(tz=tz)
+        lock_time = now.isoformat()
+        lock_expire = (now + lock_expire_delta).isoformat()
+        self.lock = DataLockFlag(locked_by=locked_by, lock_time=lock_time, lock_expire=lock_expire)
         return self
     
     def with_label(self, skip_if_exists: bool = True):
@@ -266,20 +288,29 @@ class Database:
         info_path = self.driver.meta_dir / identifier / "info.json"
         label_path = self.driver.meta_dir / identifier / "label.json"
         skip_path = self.driver.meta_dir / identifier / "skip.json"
+        lock_path = self.driver.meta_dir / identifier / "lock.json"
 
-        fetch_result = self.driver.check_many([info_path, label_path, skip_path], read_text=True)
+        fetch_result = self.driver.check_many([info_path, label_path, skip_path, lock_path], read_text=True)
         info = DataInfo(**json.loads(info_text)) if (info_text:=fetch_result[info_path]) is not None else None
         label = DataLabel(**json.loads(label_text)) if (label_text:=fetch_result[label_path]) is not None else None
         skipped = DataSkipFlag(**json.loads(skip_text)) if (skip_text:=fetch_result[skip_path]) is not None else None
+        lock = DataLockFlag(**json.loads(lock_text)) if (lock_text:=fetch_result[lock_path]) is not None else None
 
         if info is None:
             raise FileNotFoundError(f"Data info not found for data_id: {identifier}")
+
+        # check if lock has expired
+        if lock is not None:
+            local_zone = datetime.datetime.now().astimezone().tzinfo
+            lock_expire_time = datetime.datetime.fromisoformat(lock.lock_expire)
+            if lock_expire_time < datetime.datetime.now(tz=local_zone):
+                lock = None
         
         def load_image():
             image_path = self.driver.image_dir / info.file_name
             image_bytes = self.driver.read_bytes(image_path)
             return Image.open(BytesIO(image_bytes)).convert("RGB")
-        return DataPoint(identifier=identifier, load_image=load_image, info=info, label=label, skip=skipped)
+        return DataPoint(identifier=identifier, load_image=load_image, info=info, label=label, skip=skipped, lock=lock)
     
     def dump(self, data_point: DataPoint):
         """
@@ -310,15 +341,23 @@ class Database:
         info_path = self.driver.meta_dir / identifier / "info.json"
         label_path = self.driver.meta_dir / identifier / "label.json"
         skip_path = self.driver.meta_dir / identifier / "skip.json"
+        lock_path = self.driver.meta_dir / identifier / "lock.json"
 
         self.driver.write_json(info_path, data_point.info.model_dump(by_alias=True))
 
-        if data_point.label is not None:
-            self.driver.write_json(label_path, data_point.label.model_dump(by_alias=True))
-        else:
-            self.driver.delete_if_exists(label_path)
+        # check if lock has expired
+        if data_point.lock is not None:
+            local_zone = datetime.datetime.now().astimezone().tzinfo
+            lock_expire_time = datetime.datetime.fromisoformat(data_point.lock.lock_expire)
+            if lock_expire_time < datetime.datetime.now(tz=local_zone):
+                data_point.lock = None
 
-        if data_point.skip is not None:
-            self.driver.write_json(skip_path, data_point.skip.model_dump(by_alias=True))
-        else:
-            self.driver.delete_if_exists(skip_path)
+        def write_or_delete(path, obj: Optional[BaseSchema]):
+            if obj is not None:
+                self.driver.write_json(path, obj.model_dump(by_alias=True))
+            else:
+                self.driver.delete_if_exists(path)
+
+        write_or_delete(label_path, data_point.label)
+        write_or_delete(skip_path, data_point.skip)
+        write_or_delete(lock_path, data_point.lock)
