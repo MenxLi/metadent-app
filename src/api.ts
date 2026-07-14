@@ -458,13 +458,21 @@ interface RegionResponse {
   contours: [number, number][][];
 }
 
-interface RegionDescriptionProposeResponse {
-  image_id: string;
-  choices: string[];
-}
-
 interface TranscribeResponse {
   text: string;
+}
+
+interface RegionDescriptionResponse {
+  content: string;
+  low_confidence: boolean;
+}
+
+interface RegionDescriptionProposeItem extends RegionDescriptionResponse {
+  bbox: [number, number, number, number]; // [x1, y1, x2, y2] in normalized coordinates [0,1]
+}
+
+interface RegionDescriptionProposeResponse {
+  content: RegionDescriptionProposeItem[];
 }
 
 export type { AIChatImageInput, AIChatMessage, AIChatRequest, AIChatRole } from './openai-client';
@@ -577,13 +585,12 @@ export class AIService {
   /// Generate region description for the given contours, with optional overall context
   /// The context should be pre-processed to exclude the region to be described, to avoid information leakage.
   /// The frontend will/should handle this pre-processing.
-  public async regionDescription(image_id: string, contours: [number, number][][], context: DataLabel): Promise<string> {
+  public async regionDescription(image_id: string, contours: [number, number][][], context: DataLabel): Promise<RegionDescriptionResponse> {
     if (context) {
       // convert context to snake_case to be compatible with python backend
       context = to_snake_case_obj(context) as unknown as DataLabel;
     }
-    const response = await this.fetch('region-description', { image_id, contours, context }) as LLMResponse;
-    return response.choices[0] || "";
+    return await this.fetch('region-description', { image_id, contours, context }) as RegionDescriptionResponse;
   }
 
   public async regionRefine(image_id: string, contours: [number, number][][]): Promise<[number, number][][]> {
@@ -597,14 +604,10 @@ export class AIService {
   }
 
   /// Propose multiple potential items with region description for the given image
-  public async regionDescriptionPropose(image_id: string, context: DataLabel): Promise<Array<string>> {
+  public async regionDescriptionPropose(image_id: string, context: DataLabel): Promise<RegionDescriptionProposeItem[]> {
     if (context) { context = to_snake_case_obj(context) as unknown as DataLabel; }
     const response = await this.fetch('region-description-propose', { image_id, context }) as RegionDescriptionProposeResponse;
-    const raw = response.choices[0]!
-    if (!raw.trim() || raw.trim() === "OK") {
-      return [];
-    }
-    return raw.split("\n").map(line => line.trim()).filter(line => line.length > 0);
+    return response.content;
   }
 
   public async transcribe(audioBlob: Blob, audioExtension = 'webm'): Promise<string> {
