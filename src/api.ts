@@ -468,11 +468,11 @@ interface RegionDescriptionResponse {
 }
 
 interface RegionDescriptionProposeItem extends RegionDescriptionResponse {
-  bbox: [number, number, number, number]; // [x1, y1, x2, y2] in normalized coordinates [0,1]
+  bbox: [number, number, number, number][]; // [x1, y1, x2, y2] in normalized coordinates [0,1]
 }
 
 interface RegionDescriptionProposeResponse {
-  content: RegionDescriptionProposeItem[];
+  proposals: RegionDescriptionProposeItem[];
 }
 
 export type { AIChatImageInput, AIChatMessage, AIChatRequest, AIChatRole } from './openai-client';
@@ -607,7 +607,7 @@ export class AIService {
   public async regionDescriptionPropose(image_id: string, context: DataLabel): Promise<RegionDescriptionProposeItem[]> {
     if (context) { context = to_snake_case_obj(context) as unknown as DataLabel; }
     const response = await this.fetch('region-description-propose', { image_id, context }) as RegionDescriptionProposeResponse;
-    return response.content;
+    return response.proposals;
   }
 
   public async transcribe(audioBlob: Blob, audioExtension = 'webm'): Promise<string> {
