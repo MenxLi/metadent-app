@@ -21,6 +21,7 @@ const imageDir = ref(userStore.settings.imageDir)
 const metaDir = ref(userStore.settings.metaDir)
 const loadNextGoToUnlabeled = ref(userStore.settings.loadNextGoToUnlabeled)
 const showImageLabelerHint = ref(userStore.settings.showImageLabelerHint)
+const enableAnnotationStats = ref(userStore.settings.enableAnnotationStats)
 const enableAIHelpers = ref(userStore.settings.enableAIHelpers)
 const aiBackendUrl = ref(userStore.settings.aiBackendUrl)
 const aiBackendToken = ref(userStore.settings.aiBackendToken)
@@ -32,6 +33,7 @@ watch(showWindow, () => {
     metaDir.value = userStore.settings.metaDir
     loadNextGoToUnlabeled.value = userStore.settings.loadNextGoToUnlabeled
     showImageLabelerHint.value = userStore.settings.showImageLabelerHint
+    enableAnnotationStats.value = userStore.settings.enableAnnotationStats
     enableAIHelpers.value = userStore.settings.enableAIHelpers
     aiBackendUrl.value = userStore.settings.aiBackendUrl
     aiBackendToken.value = userStore.settings.aiBackendToken
@@ -57,6 +59,7 @@ function saveSettings() {
   userStore.settings.aiBackendToken = aiBackendToken.value
   userStore.settings.loadNextGoToUnlabeled = loadNextGoToUnlabeled.value;
   userStore.settings.showImageLabelerHint = showImageLabelerHint.value;
+  userStore.settings.enableAnnotationStats = enableAnnotationStats.value;
   userStore.settings.aiFeatureSet = { ...aiFeatureSet.value }
   showWindow.value = false
 
@@ -113,6 +116,18 @@ function saveSettings() {
         />
         <label for="showImageLabelerHint" class="text-sm font-medium text-gray-700">
           Show image labeler help overlay
+        </label>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <input
+          v-model="enableAnnotationStats"
+          type="checkbox"
+          id="enableAnnotationStats"
+          class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        />
+        <label for="enableAnnotationStats" class="text-sm font-medium text-gray-700">
+          Enable annotation stats
         </label>
       </div>
 

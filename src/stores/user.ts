@@ -22,6 +22,7 @@ interface UserSettings {
   metaDir: string;
   loadNextGoToUnlabeled: boolean;
   showImageLabelerHint: boolean;
+  enableAnnotationStats: boolean;
   enableAIHelpers: boolean;
   aiBackendUrl: string;
   aiBackendToken: string;
@@ -41,6 +42,7 @@ function defaultSettings(): UserSettings {
     metaDir: "public/meta/",
     loadNextGoToUnlabeled: true,
     showImageLabelerHint: true,
+    enableAnnotationStats: false,
     enableAIHelpers: false,
     aiBackendUrl: "",
     aiBackendToken: "",

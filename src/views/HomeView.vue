@@ -2,6 +2,7 @@
   import { onUnmounted } from 'vue';
   import { useUserStore } from '@/stores/user';
   import { useDataStore } from '@/stores/data';
+  import { useStatStore } from '@/stores/stat';
   import { useRouter } from 'vue-router'
   import InfoPanel from '@/components/InfoPanel.vue';
   import IndexPanel from '@/components/IndexPanel.vue';
@@ -11,6 +12,7 @@
 
   const router = useRouter()
   const userStore = useUserStore()
+  const statStore = useStatStore()
   userStore.configureOverride()
   userStore.verifyLoginRedirect()
 
@@ -31,6 +33,7 @@
   });
 
   function logout() {
+    statStore.clear();
     userStore.logout();
     router.push({ name: 'login' });
   }

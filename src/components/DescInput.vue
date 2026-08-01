@@ -8,6 +8,8 @@
       ref="textareaRef"
       rows="1"
       @input="handleInput"
+      @compositionstart="handleCompositionStart"
+      @compositionend="handleCompositionEnd"
       @keydown="handleKeydown"
     ></textarea>
 
@@ -107,6 +109,8 @@ import { useDataStore } from '@/stores/data';
 import { useComponentStore } from '@/stores/component';
 import { AIService } from '@/api';
 import { useUserStore } from '@/stores/user';
+import { useStatStore } from '@/stores/stat';
+import { useInputTracking } from '@/composables/useInputTracking';
 
 const modelValue = defineModel('modelValue', {
   type: String,
@@ -128,9 +132,14 @@ const emit = defineEmits<{
 const dataStore = useDataStore()
 const componentStore = useComponentStore()
 const userStore = useUserStore()
+const statStore = useStatStore()
 const aiService = new AIService()
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const activeActionKey = ref<string | null>(null)
+const { handleInput: trackInput, handleCompositionStart, handleCompositionEnd } = useInputTracking(
+  () => modelValue.value ?? '',
+  statStore.recordManualInput,
+)
 const actionUndoStack = ref<string[]>([])
 const hasUserEditedSinceLastAction = ref(false)
 const MAX_ACTION_UNDO = 20
@@ -287,8 +296,9 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-function handleInput() {
+function handleInput(event: InputEvent) {
   hasUserEditedSinceLastAction.value = true
+  trackInput(event)
   autoResizeTextarea()
 }
 
