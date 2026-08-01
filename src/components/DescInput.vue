@@ -3,10 +3,10 @@
     <textarea
       v-model="modelValue"
       :disabled="isBusy"
-      class="w-full p-2 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-500"
+      class="w-full p-2 pb-10 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-500 resize-y overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       placeholder="Overall description"
       ref="textareaRef"
-      rows="3"
+      rows="1"
       @input="handleInput"
       @keydown="handleKeydown"
     ></textarea>
@@ -257,12 +257,18 @@ function insertTranscriptAtCursor(text: string) {
 
 watch(() => dataStore.activeDataItem?.fileName, resetActionUndoState)
 
-onMounted(() => {
+watch(modelValue, () => {
+  autoResizeTextarea()
+})
+
+onMounted(async () => {
   componentStore.descInputExpose = {
     focus,
     autoGenerateOverallDescription,
     insertTranscriptAtCursor,
   }
+  await nextTick()
+  autoResizeTextarea()
 })
 onUnmounted(() => {
   componentStore.descInputExpose = null
@@ -283,6 +289,15 @@ function handleKeydown(event: KeyboardEvent) {
 
 function handleInput() {
   hasUserEditedSinceLastAction.value = true
+  autoResizeTextarea()
+}
+
+async function autoResizeTextarea() {
+  const el = textareaRef.value
+  if (!el) return
+  await nextTick()
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px'
 }
 
 function pushActionUndoSnapshot() {
