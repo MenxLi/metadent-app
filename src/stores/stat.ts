@@ -10,6 +10,11 @@ export const useStatStore = defineStore('StatInfo', () => {
   let sessionStartedAt: number | null = null
   let hasActiveSession = false
   let timer: number | null = null
+  let windowFocused = true
+
+  function isPageActive() {
+    return windowFocused && !document.hidden
+  }
 
   function stopTimer() {
     syncElapsedTime()
@@ -34,7 +39,7 @@ export const useStatStore = defineStore('StatInfo', () => {
   }
 
   function ensureTimer() {
-    if (!enabled.value || paused.value || !hasActiveSession || document.hidden || timer !== null) {
+    if (!enabled.value || paused.value || !hasActiveSession || !isPageActive() || timer !== null) {
       return
     }
 
@@ -110,7 +115,17 @@ export const useStatStore = defineStore('StatInfo', () => {
   }
 
   function handleVisibilityChange() {
-    if (document.hidden) {
+    if (!isPageActive()) {
+      stopTimer()
+      return
+    }
+
+    ensureTimer()
+  }
+
+  function handleFocusChange() {
+    windowFocused = document.hasFocus()
+    if (!isPageActive()) {
       stopTimer()
       return
     }
@@ -123,6 +138,8 @@ export const useStatStore = defineStore('StatInfo', () => {
     setEnabled(Boolean(value))
   }, { immediate: true })
   document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('focus', handleFocusChange)
+  window.addEventListener('blur', handleFocusChange)
 
   return {
     enabled,
