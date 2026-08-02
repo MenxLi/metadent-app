@@ -51,6 +51,11 @@ export const useStatStore = defineStore('StatInfo', () => {
       hasActiveSession = false
       return
     }
+
+    if (!paused.value) {
+      hasActiveSession = true
+      ensureTimer()
+    }
   }
 
   function togglePause() {
