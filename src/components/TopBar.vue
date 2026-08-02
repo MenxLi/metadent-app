@@ -13,27 +13,7 @@
     <div v-else class="text-gray-400 italic">Not logged in</div>
 
     <div v-if="userInfo" class="flex items-center gap-2">
-      <div v-if="statStore.enabled" class="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-        <span>{{ formatDuration(statStore.totalSeconds) }}</span>
-        <span class="text-slate-400">•</span>
-        <span>{{ statStore.manualInputCount }} chars</span>
-        <button
-          type="button"
-          class="rounded-full px-1.5 py-0.5 text-[11px] hover:bg-slate-200"
-          :title="statStore.paused ? 'Resume stats' : 'Pause stats'"
-          @click="statStore.togglePause()"
-        >
-          {{ statStore.paused ? '▶' : '⏸' }}
-        </button>
-        <button
-          type="button"
-          class="rounded-full px-1.5 py-0.5 text-[11px] hover:bg-slate-200"
-          title="Reset stats"
-          @click="statStore.reset()"
-        >
-          ↺
-        </button>
-      </div>
+      <AnnotationStats />
 
       <UserSettings v-model:show="showSettings" />
       <button
@@ -54,9 +34,9 @@
 
 <script setup lang="ts">
   import { ref } from 'vue'
+  import AnnotationStats from './AnnotationStats.vue'
   import UserSettings from './UserSettings.vue';
   import type { UserInfo } from '../api'
-  import { useStatStore } from '@/stores/stat'
 
   defineProps<{
     userInfo: UserInfo | null
@@ -66,19 +46,8 @@
     (e: 'logout'): void
   }>()
 
-  const statStore = useStatStore()
-
   function logout() {
     emit('logout')
-  }
-
-  function formatDuration(totalSeconds: number) {
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-    const seconds = totalSeconds % 60
-    return [hours, minutes, seconds]
-      .map(value => String(value).padStart(2, '0'))
-      .join(':')
   }
 
   const showSettings = ref(false)

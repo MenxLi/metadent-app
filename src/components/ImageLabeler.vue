@@ -118,6 +118,7 @@ import { ref, computed, nextTick, watch, onMounted, onBeforeUnmount, toRef } fro
 import type { LabelItem } from '@/api';
 import type { RegionProposalBboxHint } from '@/composables/useRegionProposalHints';
 import { useUserStore } from '@/stores/user'
+import { useStatStore } from '@/stores/stat'
 import { useImageLabelerInteraction, type CropDraft, type CropRect, type Point } from '@/composables/useImageLabelerInteraction';
 import FloatingIconButton from './containers/FloatingIconButton.vue';
 import ImageLabelerProposalHints from './ImageLabelerProposalHints.vue';
@@ -158,6 +159,7 @@ const containerRef = ref<HTMLDivElement | null>(null);
 const hoveredPolygon = ref<HoveredPolygonState | null>(null);
 const imageSize = ref({ width: 1, height: 1 });
 const userStore = useUserStore();
+const statStore = useStatStore();
 const isHintCollapsed = ref(true);
 
 watch(
@@ -379,6 +381,8 @@ function getReactiveCropPoints(crop: CropDraft | null) {
 
 function commitContour(contour: Point[]) {
   if (!props.activeLabel) return;
+
+  statStore.recordContourCount(1);
 
   const updatedLabels: LabelItem[] = props.labels.map(label =>
     label.id === props.activeLabel

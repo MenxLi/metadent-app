@@ -7,6 +7,7 @@ export const useStatStore = defineStore('StatInfo', () => {
   const paused = ref(false)
   const totalSeconds = ref(0)
   const manualInputCount = ref(0)
+  const contourCount = ref(0)
   let sessionStartedAt: number | null = null
   let hasActiveSession = false
   let timer: number | null = null
@@ -83,6 +84,7 @@ export const useStatStore = defineStore('StatInfo', () => {
     stopTimer()
     totalSeconds.value = 0
     manualInputCount.value = 0
+    contourCount.value = 0
     hasActiveSession = resumeSession
 
     if (enabled.value && !paused.value) {
@@ -104,12 +106,27 @@ export const useStatStore = defineStore('StatInfo', () => {
     ensureTimer()
   }
 
+  function recordContourCount(count: number) {
+    if (!enabled.value || paused.value) {
+      return
+    }
+
+    if (count <= 0) {
+      return
+    }
+
+    contourCount.value += count
+    hasActiveSession = true
+    ensureTimer()
+  }
+
   function clear() {
     stopTimer()
     enabled.value = false
     paused.value = false
     totalSeconds.value = 0
     manualInputCount.value = 0
+    contourCount.value = 0
     hasActiveSession = false
     window.localStorage.removeItem('StatInfo')
   }
@@ -146,12 +163,14 @@ export const useStatStore = defineStore('StatInfo', () => {
     paused,
     totalSeconds,
     manualInputCount,
+    contourCount,
     syncElapsedTime,
     ensureTimer,
     setEnabled,
     togglePause,
     reset,
     recordManualInput,
+    recordContourCount,
     clear,
   }
 }, {
