@@ -67,8 +67,25 @@ def simplify_polygon(
     resolution: int = 512, 
     unify_orientation: bool = True, 
     unify_start_point: bool = True, 
+    max_points: int | None = None,
+    optimize_iou: bool = False,
+    min_iou: float | None = None,
     ) -> Polygon:
-    """Simplify a polygon using opencv approxPolyDP (Ramer-Douglas-Peucker algorithm)."""
+    """Simplify a polygon with OpenCV's Ramer-Douglas-Peucker algorithm.
+    - `epsilon` is the approximation tolerance in pixels (after quantization to `resolution`).
+    - `unify_orientation` ensures that the polygon is oriented counter-clockwise.
+    - `unify_start_point` ensures that the polygon starts from the point with the smallest (x+y) coordinate.
+    - When ``max_points`` is set, use the smallest approximation tolerance that
+      produces no more than that number of vertices. 
+    - Set ``optimize_iou`` to locally adjust those vertices for better raster-mask IoU. 
+    - With ``min_iou``, remove redundant vertices while retaining at least that IoU.
+    """
+    if max_points is not None and max_points < 3:
+        raise ValueError("max_points must be at least 3")
+    if min_iou is not None and not 0 <= min_iou <= 1:
+        raise ValueError("min_iou must be between 0 and 1")
+    if min_iou is not None and (max_points is None or not optimize_iou):
+        raise ValueError("min_iou requires max_points and optimize_iou=True")
     if polygon.shape[0] < 3:
         return polygon
     pts = quantize_polygon(polygon, resolution)
@@ -79,4 +96,71 @@ def simplify_polygon(
         start_idx = np.argmin(pts.sum(axis=1))  # Start from the point with the smallest (x+y)
         pts = np.roll(pts, -start_idx, axis=0)
     simplified = cv.approxPolyDP(pts, epsilon, closed=True)
+    if max_points is not None and len(simplified) > max_points:
+        upper_epsilon = max(epsilon, float(np.linalg.norm(np.ptp(pts, axis=0))))
+        lower_epsilon = epsilon
+        simplified = cv.approxPolyDP(pts, upper_epsilon, closed=True)
+        for _ in range(24):
+            candidate_epsilon = (lower_epsilon + upper_epsilon) / 2
+            candidate = cv.approxPolyDP(pts, candidate_epsilon, closed=True)
+            if len(candidate) <= max_points:
+                upper_epsilon = candidate_epsilon
+                simplified = candidate
+            else:
+                lower_epsilon = candidate_epsilon
+    if optimize_iou and max_points is not None:
+        target_mask = np.zeros((resolution, resolution), dtype=np.uint8)
+        cv.fillPoly(target_mask, [pts], color=255)
+        candidate_mask = np.empty_like(target_mask)
+        intersection_mask = np.empty_like(target_mask)
+        target_area = cv.countNonZero(target_mask)
+
+        def iou(candidate: np.ndarray) -> float:
+            candidate_mask.fill(0)
+            cv.fillPoly(candidate_mask, [candidate], color=255)
+            candidate_area = cv.countNonZero(candidate_mask)
+            intersection = cv.countNonZero(
+                cv.bitwise_and(target_mask, candidate_mask, dst=intersection_mask)
+            )
+            union = target_area + candidate_area - intersection
+            return intersection / union if union else 1.0
+
+        def refine_iou(candidate: np.ndarray) -> tuple[np.ndarray, float]:
+            refined = candidate.copy()
+            best_iou = iou(refined)
+            directions = ((1, 0), (-1, 0), (0, 1), (0, -1),
+                          (1, 1), (1, -1), (-1, 1), (-1, -1))
+            for step in (max(1, resolution // 32), max(1, resolution // 128), 1):
+                improved = True
+                while improved:
+                    improved = False
+                    for point_index in range(len(refined)):
+                        original_point = refined[point_index].copy()
+                        for direction_x, direction_y in directions:
+                            refined[point_index] = np.clip(
+                                original_point + (direction_x * step, direction_y * step), 0, resolution
+                            )
+                            if np.array_equal(refined[point_index], original_point):
+                                continue
+                            if abs(cv.contourArea(refined)) < 1:
+                                refined[point_index] = original_point
+                                continue
+                            candidate_iou = iou(refined)
+                            if candidate_iou > best_iou:
+                                best_iou = candidate_iou
+                                improved = True
+                                original_point = refined[point_index].copy()
+                            else:
+                                refined[point_index] = original_point
+            return refined, best_iou
+
+        refined, best_iou = refine_iou(simplified.squeeze(1))
+        while min_iou is not None and len(refined) > 3:
+            removals = [np.delete(refined, point_index, axis=0) for point_index in range(len(refined))]
+            best_removal = max(removals, key=iou)
+            candidate, candidate_iou = refine_iou(best_removal)
+            if candidate_iou < min_iou:
+                break
+            refined, best_iou = candidate, candidate_iou
+        simplified = refined[:, np.newaxis, :]
     return simplified.squeeze(1).astype(np.float64) / resolution    # type: ignore
