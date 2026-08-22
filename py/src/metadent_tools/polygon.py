@@ -109,8 +109,14 @@ def simplify_polygon(
             else:
                 lower_epsilon = candidate_epsilon
     if optimize_iou and max_points is not None:
-        target_mask = np.zeros((resolution, resolution), dtype=np.uint8)
-        cv.fillPoly(target_mask, [pts], color=255)
+        max_step = max(1, resolution // 32)
+        clipped_pts = np.clip(pts, 0, resolution - 1)
+        min_xy = np.maximum(clipped_pts.min(axis=0) - max_step, 0)
+        max_xy = np.minimum(clipped_pts.max(axis=0) + max_step, resolution - 1)
+        roi_size = max_xy - min_xy + 1
+        local_pts = clipped_pts - min_xy
+        target_mask = np.zeros((int(roi_size[1]), int(roi_size[0])), dtype=np.uint8)
+        cv.fillPoly(target_mask, [local_pts], color=255)
         candidate_mask = np.empty_like(target_mask)
         intersection_mask = np.empty_like(target_mask)
         target_area = cv.countNonZero(target_mask)
@@ -130,7 +136,8 @@ def simplify_polygon(
             best_iou = iou(refined)
             directions = ((1, 0), (-1, 0), (0, 1), (0, -1),
                           (1, 1), (1, -1), (-1, 1), (-1, -1))
-            for step in (max(1, resolution // 32), max(1, resolution // 128), 1):
+            steps = dict.fromkeys((max_step, max(1, resolution // 128), 1))
+            for step in steps:
                 improved = True
                 while improved:
                     improved = False
@@ -138,7 +145,7 @@ def simplify_polygon(
                         original_point = refined[point_index].copy()
                         for direction_x, direction_y in directions:
                             refined[point_index] = np.clip(
-                                original_point + (direction_x * step, direction_y * step), 0, resolution
+                                original_point + (direction_x * step, direction_y * step), 0, roi_size - 1
                             )
                             if np.array_equal(refined[point_index], original_point):
                                 continue
@@ -154,7 +161,8 @@ def simplify_polygon(
                                 refined[point_index] = original_point
             return refined, best_iou
 
-        refined, best_iou = refine_iou(simplified.squeeze(1))
+        initial = np.clip(simplified.squeeze(1), min_xy, max_xy) - min_xy
+        refined, best_iou = refine_iou(initial)
         while min_iou is not None and len(refined) > 3:
             removals = [np.delete(refined, point_index, axis=0) for point_index in range(len(refined))]
             best_removal = max(removals, key=iou)
@@ -162,5 +170,5 @@ def simplify_polygon(
             if candidate_iou < min_iou:
                 break
             refined, best_iou = candidate, candidate_iou
-        simplified = refined[:, np.newaxis, :]
+        simplified = (refined + min_xy)[:, np.newaxis, :]
     return simplified.squeeze(1).astype(np.float64) / resolution    # type: ignore
