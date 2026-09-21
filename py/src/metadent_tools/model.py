@@ -4,7 +4,7 @@ import json
 from io import BytesIO
 from PIL import Image
 from contextlib import contextmanager
-from typing import Optional, Literal, Callable, Annotated, TypeAlias, Sequence
+from typing import Optional, Literal, Callable, Annotated, TypeAlias, Sequence, Generic
 import uuid, random
 import datetime
 
@@ -271,10 +271,10 @@ class DataPoint:
         return self
 
 @contextmanager
-def connect(driver: DriverAbstract):
+def connect(driver: DriverAbstract, readonly: bool = False):
     try:
         driver._maybe_connect()
-        yield Database(driver=driver)
+        yield Database(driver=driver, readonly=readonly)
     except: raise
     finally: 
         driver._maybe_disconnect()
@@ -283,6 +283,11 @@ _MetaFieldT = Literal["info", "label", "skip", "lock"]
 @dataclass
 class Database:
     driver: DriverAbstract
+    readonly: bool
+
+    def _guard_readonly(self):
+        if self.readonly:
+            raise PermissionError("Operation not allowed in read-only mode.")
 
     def load(self, identifier: str):
         info_path = self.driver.meta_dir / identifier / "info.json"
@@ -334,6 +339,8 @@ class Database:
             db.dump(dp)  
         ```
         """
+        self._guard_readonly()
+
         if locked_by is None or locked_by.strip() == "":
             locked_by = f"api-{uuid.uuid4()}"
         dp = self.load(identifier)
@@ -355,6 +362,8 @@ class Database:
             - if a destination file already exists, it will be overwritten.
             - if some field are set to None, the corresponding file will be deleted if exists.
         """
+        self._guard_readonly()
+
         image_path = self.driver.image_dir / data_point.info.file_name
         image_bytes_io = BytesIO()
         data_point.load_image().save(image_bytes_io, format="JPEG")
@@ -372,6 +381,8 @@ class Database:
         Dump only the meta info of a data point to the database, without touching the image file.
         This is useful when you want to update the label or skip info of a data point without changing the image.
         """
+        self._guard_readonly()
+
         identifier = data_point.identifier
 
         if validate:
