@@ -7,6 +7,8 @@
     @mousedown="startDrawing"
     @mousemove="draw"
     @mouseup="stopDrawing"
+    @pointerenter="pointerInsideCanvas = true"
+    @pointerleave="pointerInsideCanvas = false"
     @touchstart="startDrawing"
     @touchmove.prevent="draw"
     @touchend="stopDrawing"
@@ -80,7 +82,7 @@
       <template v-if="displayContours.length">
         <template v-for="contourItem in displayContours" :key="contourItem.key">
           <polygon
-            :points="getReactiveSvgPoints(contourItem.contour)"
+            :points="toSvgPoints(contourItem.contour)"
             :fill="getPolygonFillColor(contourItem.labelId, contourItem.contourIndex, contourItem.color)"
             :stroke="getPolygonStrokeColor(contourItem.labelId, contourItem.contourIndex, contourItem.color)"
             :stroke-width="getPolygonStrokeWidth(contourItem.labelId, contourItem.contourIndex)"
@@ -97,19 +99,28 @@
       </template>
       <polyline
         v-if="drawing && currentContour.length"
-        :points="getReactiveSvgPoints(currentContour)"
+        :points="toSvgPoints(currentContour)"
         fill="none"
-        :stroke="props.activeLabel ? props.labels.find(label => label.id === props.activeLabel)?.color : '#000000'"
+        :stroke="drawMode === 'subtract' ? '#ff5566' : props.activeLabel ? props.labels.find(label => label.id === props.activeLabel)?.color : '#000000'"
         stroke-width="2"
       />
       <polyline
-        :points="getReactiveCropPoints(currentCrop)"
+        :points="toSvgPoints(cropOutline)"
         fill="none"
         stroke="#33EECC"
         stroke-width="2"
         stroke-dasharray="5,3"
       />
     </svg>
+    <div
+      v-if="pendingModeHint"
+      class="pointer-events-none absolute bottom-2 right-2 z-10 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wider backdrop-blur-sm"
+      :class="pendingModeHint === 'subtract'
+        ? 'bg-rose-500/25 text-rose-100 ring-1 ring-inset ring-rose-300/40'
+        : 'bg-emerald-500/25 text-emerald-100 ring-1 ring-inset ring-emerald-300/40'"
+    >
+      {{ pendingModeHint === 'subtract' ? '- Subtract' : '+ Merge' }}
+    </div>
   </div>
 </template>
 
@@ -117,9 +128,10 @@
 import { ref, computed, nextTick, watch, onMounted, onBeforeUnmount, toRef } from 'vue';
 import type { LabelItem } from '@/api';
 import type { RegionProposalBboxHint } from '@/composables/useRegionProposalHints';
+import { combineContours, cloneContours, type ContourDrawMode } from '@/contour-tools';
 import { useUserStore } from '@/stores/user'
 import { useStatStore } from '@/stores/stat'
-import { useImageLabelerInteraction, type CropDraft, type CropRect, type Point } from '@/composables/useImageLabelerInteraction';
+import { useImageLabelerInteraction, type CropRect, type Point } from '@/composables/useImageLabelerInteraction';
 import FloatingIconButton from './containers/FloatingIconButton.vue';
 import ImageLabelerProposalHints from './ImageLabelerProposalHints.vue';
 
@@ -161,6 +173,15 @@ const imageSize = ref({ width: 1, height: 1 });
 const userStore = useUserStore();
 const statStore = useStatStore();
 const isHintCollapsed = ref(true);
+const pointerInsideCanvas = ref(false);
+
+// While drawing, the committed gesture mode wins; before that, hint the
+// modifier mode only while the pointer is over the canvas.
+const pendingModeHint = computed<Exclude<ContourDrawMode, 'add'> | null>(() => {
+  if (drawing.value) return drawMode.value === 'add' ? null : drawMode.value;
+  if (!props.activeLabel || !pointerInsideCanvas.value) return null;
+  return hoverModifierMode.value === 'add' ? null : hoverModifierMode.value;
+});
 
 watch(
   () => props.labels,
@@ -216,7 +237,9 @@ const {
   currentContour,
   currentCrop,
   draw,
+  drawMode,
   drawing,
+  hoverModifierMode,
   interactionHint,
   startDrawing,
   stopDrawing,
@@ -225,21 +248,27 @@ const {
   activeLabel: toRef(props, 'activeLabel'),
   crop: toRef(props, 'crop'),
   onCropCommitted: (crop) => emit('update:crop', crop),
-  onContourCommitted: (contour) => commitContour(contour),
+  onContourCommitted: (contour, mode) => commitContour(contour, mode),
 });
 
 const hintBadgeLabel = computed(() => {
   if (interactionHint.value === 'Release to finish crop') return 'Cropping';
-  if (interactionHint.value === 'Release to finish contour') return 'Drawing';
+  if (drawing.value) {
+    if (drawMode.value === 'union') return 'Merging';
+    if (drawMode.value === 'subtract') return 'Subtracting';
+    return 'Drawing';
+  }
   if (props.activeLabel) return 'Ready';
   return 'Select';
 });
-
 const hintBadgeClass = computed(() => {
   if (interactionHint.value === 'Release to finish crop') {
     return 'bg-cyan-300/20 text-cyan-100 ring-1 ring-inset ring-cyan-200/30';
   }
-  if (interactionHint.value === 'Release to finish contour') {
+  if (drawing.value && drawMode.value === 'subtract') {
+    return 'bg-rose-300/20 text-rose-100 ring-1 ring-inset ring-rose-200/30';
+  }
+  if (drawing.value) {
     return 'bg-emerald-300/20 text-emerald-100 ring-1 ring-inset ring-emerald-200/30';
   }
   if (props.activeLabel) {
@@ -363,33 +392,48 @@ function toSvgPoints(contour: Point[]): string {
   return contour.map(([x, y]) => `${x * width},${y * height}`).join(' ');
 }
 
-function getReactiveSvgPoints(contour: Point[]) {
-  return computed(() => toSvgPoints(contour)).value;
-}
-
-function getReactiveCropPoints(crop: CropDraft | null) {
-  if (!crop) return '';
-  const contour: Point[] = [
-    [Math.min(crop[0][0], crop[1][0]), Math.min(crop[0][1], crop[1][1])],
-    [Math.max(crop[0][0], crop[1][0]), Math.min(crop[0][1], crop[1][1])],
-    [Math.max(crop[0][0], crop[1][0]), Math.max(crop[0][1], crop[1][1])],
-    [Math.min(crop[0][0], crop[1][0]), Math.max(crop[0][1], crop[1][1])],
-    [Math.min(crop[0][0], crop[1][0]), Math.min(crop[0][1], crop[1][1])],
+const cropOutline = computed<Point[]>(() => {
+  const crop = currentCrop.value;
+  if (!crop) return [];
+  const [[x1, y1], [x2, y2]] = crop;
+  return [
+    [Math.min(x1, x2), Math.min(y1, y2)],
+    [Math.max(x1, x2), Math.min(y1, y2)],
+    [Math.max(x1, x2), Math.max(y1, y2)],
+    [Math.min(x1, x2), Math.max(y1, y2)],
+    [Math.min(x1, x2), Math.min(y1, y2)],
   ];
-  return computed(() => toSvgPoints(contour)).value;
-}
+});
 
-function commitContour(contour: Point[]) {
+function commitContour(contour: Point[], mode: ContourDrawMode = 'add') {
   if (!props.activeLabel) return;
 
-  statStore.recordContourCount(1);
+  const active = props.labels.find((label) => label.id === props.activeLabel);
+  if (!active) return;
 
-  const updatedLabels: LabelItem[] = props.labels.map(label =>
-    label.id === props.activeLabel
-      ? { ...label, contours: [...label.contours, contour], preRefineContours: null }
-      : label
+  let contours: Point[][];
+  let backup: Point[][] | null = null;
+  if (mode === 'add') {
+    contours = [...active.contours, contour];
+  }
+  else {
+    const combined = combineContours(active.contours, contour, mode);
+    // Identity means the boolean op changed nothing; skip so stats stay clean.
+    if (combined === active.contours) return;
+    contours = combined;
+    // Doubles as the Ctrl+Z backup for this destructive replace.
+    backup = cloneContours(active.contours);
+  }
+
+  const updatedLabels: LabelItem[] = props.labels.map((label) =>
+    label.id === props.activeLabel ? { ...label, contours, preRefineContours: backup } : label
   );
+
+  statStore.recordContourCount(1);
   emit('update:labels', updatedLabels);
+
+  // Boolean edits refine an existing region, so no fresh description is requested.
+  if (mode !== 'add') return;
 
   const label = updatedLabels.find(item => item.id === props.activeLabel);
   if (label) {

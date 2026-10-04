@@ -37,6 +37,7 @@ On the right side is the labeling panel, where you can check image information, 
   which can be clicked to auto-generate a description using AI (settings for AI generation can be configured in the settings panel).
 - To **create a new point-by-point label**, click on the "+" button near the bottom of the labeling panel. This will add a new label entry (or you can simply press Enter key when focused on the last label entry). Type in the text input to specify the label content.
 - To **associate a label with a region in the image**, first select the label entry in the labeling panel (this turns it light-cyan), then draw with your mouse on the image viewer. Multiple regions can be drawn for each label.
+- To **merge a drawn region with overlapping regions of the active label**, hold `Shift` while drawing. To **cut the drawn region's area out of existing regions**, hold `Alt` while drawing. Press `Ctrl+Z` (with the image focused) to undo such a boolean edit.
 - To **delete a single contour of the active label**, hover over one of the contours of the active label in the image viewer, then click on the `delete` button on the keyboard.
 - To **hide/show regions associated with a label**, click on the eye icon at the top right corner of the image. This will toggle the visibility of all regions.
 - To **change the color of a label**, click on the color block next to the label entry. This will randomly change the color used to highlight the associated regions in the image.

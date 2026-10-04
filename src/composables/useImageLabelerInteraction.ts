@@ -1,5 +1,5 @@
-import { computed, ref, watch, type Ref } from 'vue'
-import { resampleContour } from '@/contour-tools'
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
+import { contourArea, resampleContour, type ContourDrawMode } from '@/contour-tools'
 
 export type Point = [number, number]
 export type CropRect = [number, number, number, number]
@@ -9,7 +9,7 @@ interface UseImageLabelerInteractionOptions {
   imageRef: Ref<HTMLImageElement | null>
   activeLabel: Ref<string | null>
   crop: Ref<CropRect | null>
-  onContourCommitted: (contour: Point[]) => void
+  onContourCommitted: (contour: Point[], mode: ContourDrawMode) => void
   onCropCommitted: (crop: CropRect | null) => void
 }
 
@@ -22,6 +22,8 @@ export function useImageLabelerInteraction(options: UseImageLabelerInteractionOp
   const currentContour = ref<Point[]>([])
   const currentCrop = ref<CropDraft | null>(null)
   const drawGestureStartedAt = ref<Point | null>(null)
+  const drawGestureMode = ref<ContourDrawMode>('add')
+  const hoverModifierMode = ref<ContourDrawMode>('add')
   const suppressNextPolygonActivation = ref(false)
 
   watch(
@@ -51,7 +53,7 @@ export function useImageLabelerInteraction(options: UseImageLabelerInteractionOp
     if (cropping.value) return 'Release to finish crop'
     if (drawing.value) return 'Release to finish contour'
     if (options.activeLabel.value) {
-      return 'Drag to draw on the active label. Click another contour to select it. Right drag to crop.'
+      return 'Drag to draw. Shift+drag merges, Alt+drag subtracts. Click another contour to select it. Right drag to crop.'
     }
     return 'Select a label to start drawing. Right drag to crop.'
   })
@@ -78,6 +80,7 @@ export function useImageLabelerInteraction(options: UseImageLabelerInteractionOp
 
   function resetDrawGestureTracking() {
     drawGestureStartedAt.value = null
+    drawGestureMode.value = 'add'
   }
 
   function resetContourDrawing() {
@@ -120,9 +123,16 @@ export function useImageLabelerInteraction(options: UseImageLabelerInteractionOp
     return event instanceof MouseEvent && event.button === 2
   }
 
+  function modeFromModifiers(event: MouseEvent | TouchEvent): ContourDrawMode {
+    if (event instanceof TouchEvent) return 'add'
+    return event.shiftKey ? 'union' : event.altKey ? 'subtract' : 'add'
+  }
+
   function startDrawing(event: MouseEvent | TouchEvent) {
     if (isPrimaryDrawGesture(event) && options.activeLabel.value) {
       drawGestureStartedAt.value = getNormalizedCoordinates(event)
+      // Capture the boolean mode at pointer-down so mid-drag modifier changes don't apply.
+      drawGestureMode.value = modeFromModifiers(event)
       currentContour.value = []
       suppressNextPolygonActivation.value = false
       return
@@ -164,15 +174,9 @@ export function useImageLabelerInteraction(options: UseImageLabelerInteractionOp
   function stopDrawing() {
     if (drawing.value && options.activeLabel.value) {
       const resampledContour = resampleContour(currentContour.value)
-      const area = Math.abs(
-        resampledContour.reduce((acc, point, index) => {
-          const nextPoint = resampledContour[(index + 1) % resampledContour.length]
-          return acc + (point[0] * nextPoint![1] - nextPoint![0] * point[1])
-        }, 0)
-      ) / 2
 
-      if (area >= 1e-4) {
-        options.onContourCommitted(resampledContour)
+      if (contourArea(resampledContour) >= 1e-4) {
+        options.onContourCommitted(resampledContour, drawGestureMode.value)
       }
 
       resetContourDrawing()
@@ -208,6 +212,31 @@ export function useImageLabelerInteraction(options: UseImageLabelerInteractionOp
     return true
   }
 
+  // Surface the pending boolean mode while Shift/Alt is held, before drawing.
+  function updateHoverModifierMode(event: KeyboardEvent) {
+    hoverModifierMode.value = event.shiftKey
+      ? 'union'
+      : event.altKey
+        ? 'subtract'
+        : 'add'
+  }
+
+  function resetHoverModifierMode() {
+    if (!drawing.value) hoverModifierMode.value = 'add'
+  }
+
+  onMounted(() => {
+    window.addEventListener('keydown', updateHoverModifierMode)
+    window.addEventListener('keyup', updateHoverModifierMode)
+    window.addEventListener('blur', resetHoverModifierMode)
+  })
+
+  onBeforeUnmount(() => {
+    window.removeEventListener('keydown', updateHoverModifierMode)
+    window.removeEventListener('keyup', updateHoverModifierMode)
+    window.removeEventListener('blur', resetHoverModifierMode)
+  })
+
   return {
     canvasCursorClass,
     consumePolygonActivationSuppression,
@@ -215,7 +244,9 @@ export function useImageLabelerInteraction(options: UseImageLabelerInteractionOp
     currentContour,
     currentCrop,
     draw,
+    drawMode: drawGestureMode,
     drawing,
+    hoverModifierMode,
     interactionHint,
     startDrawing,
     stopDrawing,

@@ -1,4 +1,9 @@
-type Point = [number, number];
+// The ESM build only exposes a default export, despite the .d.ts named exports.
+import polygonClipping from 'polygon-clipping';
+
+export type Point = [number, number];
+
+export type ContourDrawMode = 'add' | 'union' | 'subtract';
 
 type SimplificationNode = {
   index: number;
@@ -16,8 +21,69 @@ const MIN_CORNER_WINDOW = 0.003;
 const MIN_CHAIKIN_CUT_RATIO = 0.06;
 const MAX_CHAIKIN_CUT_RATIO = 0.25;
 
+const MIN_BOOLEAN_CONTOUR_AREA = 1e-5;
+
 function distance(a: Point, b: Point): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1]);
+}
+
+export function contourArea(contour: Point[]): number {
+  let area = 0;
+  for (let index = 0; index < contour.length; index++) {
+    const current = contour[index]!;
+    const next = contour[(index + 1) % contour.length]!;
+    area += current[0] * next[1] - next[0] * current[1];
+  }
+  return Math.abs(area) / 2;
+}
+
+function toMultiPolygon(contours: Point[][]) {
+  return contours.map((contour) => [contour]);
+}
+
+export function cloneContours(contours: Point[][]): Point[][] {
+  return contours.map((points) => points.map((point) => [...point] as Point));
+}
+
+/**
+ * Combine a freshly drawn contour with the existing contours of a label.
+ *
+ * - `union`: merge the drawn contour with (or append it beside) existing ones.
+ * - `subtract`: remove the drawn contour's area from existing ones.
+ *
+ * Holes produced by subtraction are dropped: contours are stored as plain
+ * rings and rendered one polygon each, so a hole cannot be represented.
+ */
+export function combineContours(
+  existingContours: Point[][],
+  drawnContour: Point[],
+  mode: Exclude<ContourDrawMode, 'add'>,
+): Point[][] {
+  if (!existingContours.length) {
+    return mode === 'union' ? [drawnContour] : existingContours;
+  }
+
+  const subject = toMultiPolygon(existingContours);
+  const clip = toMultiPolygon([drawnContour]);
+
+  const result = mode === 'union'
+    ? polygonClipping.union(subject, clip)
+    : polygonClipping.difference(subject, clip);
+
+  const combined = result
+    .map((polygon) => polygon[0] as Point[])
+    .filter((contour) => contourArea(contour) >= MIN_BOOLEAN_CONTOUR_AREA);
+
+  const areaOf = (contours: Point[][]) => contours.reduce((sum, c) => sum + contourArea(c), 0);
+
+  // No meaningful area change (disjoint subtract, contained union, or a pure
+  // hole punch whose hole is dropped): return the input array unchanged so
+  // callers can detect the no-op by identity.
+  if (Math.abs(areaOf(combined) - areaOf(existingContours)) < MIN_BOOLEAN_CONTOUR_AREA) {
+    return existingContours;
+  }
+
+  return combined;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
